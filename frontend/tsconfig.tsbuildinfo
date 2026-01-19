@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/components/editprofilemodal.tsx","./src/components/homeai.tsx","./src/components/loggedinpage.tsx","./src/components/logoutconfirmmodal.tsx","./src/components/profilemodal.tsx","./src/components/signinmodal.tsx","./src/components/signupmodal.tsx","./src/pages/home.tsx","./src/styles/commonstyles.ts"],"version":"5.9.3"}
