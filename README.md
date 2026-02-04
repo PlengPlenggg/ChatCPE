@@ -253,20 +253,6 @@ docker compose up -d
 - Check database URL in backend configuration
 - Verify port 5432 is not in use
 
-### OpenWebUI not responding
-- Check VPN connection to 10.35.29.103 (for KMUTT users)
-- Verify OPENWEBUI_URL configuration
-- System will use mock responses as fallback
-
-### Frontend not loading
-- Clear browser cache (Ctrl+Shift+Delete)
-- Check frontend container logs: `docker logs web-chatcpe-frontend-1`
-- Ensure port 8080 is not in use
-
-### Registration fails with email domain error
-- Only `@mail.kmutt.ac.th` emails are allowed
-- Check email format: `user@mail.kmutt.ac.th`
-
 ---
 
 ## 🚀 Deployment
@@ -331,18 +317,9 @@ Users can have different roles (admin, staff, user) for future access control an
 
 ---
 
-## 🤝 Contributing
-
-1. Create a feature branch: `git checkout -b feature/your-feature`
-2. Commit changes: `git commit -m "Add your feature"`
-3. Push to branch: `git push origin feature/your-feature`
-4. Open a pull request
-
----
-
 ## 📄 License
 
-This project is developed for KMUTT CPE program.
+This project is developed for Senior Project CPE Student KMUTT
 
 ---
 
@@ -355,8 +332,3 @@ Developed for Cooperative Program in Engineering - King Mongkut's University of 
 ## 📞 Support
 
 For issues or questions, please contact the development team or create an issue in the repository.
-
----
-
-**Last Updated:** February 4, 2026  
-**Version:** 1.0.0
