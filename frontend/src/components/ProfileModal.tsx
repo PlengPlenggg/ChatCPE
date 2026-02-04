@@ -69,13 +69,13 @@ function ProfileModal({ onClose, onEditProfile }: ProfileModalProps) {
         </div>
 
         <div style={{ position: 'absolute', left: 100, top: 147, color: '#6277ac', fontSize: 16 }}>Username</div>
-        <div style={{ position: 'absolute', left: 100, top: 177, width: 550, color: '#000', fontSize: 16 }}>
+        <div style={{ position: 'absolute', left: 100, top: 177, width: 550, paddingLeft: 12, color: '#000', fontSize: 16 }}>
           {loading ? 'Loading...' : error ? <span style={{color: '#d32f2f'}}>Error: {error}</span> : profile?.name || 'N/A'}
         </div>
         <div style={{ position: 'absolute', left: 100, top: 197, width: 550 }}><div style={underlineStyle} /></div>
 
         <div style={{ position: 'absolute', left: 100, top: 236, color: '#6277ac', fontSize: 16 }}>Email</div>
-        <div style={{ position: 'absolute', left: 100, top: 266, width: 550, color: '#000', fontSize: 16 }}>
+        <div style={{ position: 'absolute', left: 100, top: 266, width: 550, paddingLeft: 12, color: '#000', fontSize: 16 }}>
           {loading ? 'Loading...' : error ? <span style={{color: '#d32f2f'}}>Error: {error}</span> : profile?.email || 'N/A'}
         </div>
         <div style={{ position: 'absolute', left: 100, top: 286, width: 550 }}><div style={underlineStyle} /></div>
