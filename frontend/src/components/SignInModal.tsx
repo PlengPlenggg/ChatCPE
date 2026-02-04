@@ -1,23 +1,31 @@
 import React, { useState } from 'react';
 import { authAPI } from '../services/api';
 
-// Inline replacements for arrow + underline to avoid remote fetch delay
 const ArrowIcon = () => (
   <svg width={25} height={25} viewBox="0 0 24 24" fill="none" stroke="#6277ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="12 19 5 12 12 5" />
     <line x1="19" y1="12" x2="5" y2="12" />
   </svg>
 );
+
+const EyeIcon = ({ open }: { open: boolean }) => (
+  <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#6277ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+    <circle cx="12" cy="12" r="3" />
+    {!open && <line x1="3" y1="3" x2="21" y2="21" />}
+  </svg>
+);
+
 const underlineStyle: React.CSSProperties = { width: '100%', height: 1, background: '#6277ac', opacity: 0.9 };
 
 type Props = {
   open: boolean;
   onClose: () => void;
   onSwitchToSignUp?: () => void;
-  onSubmitSignIn?: () => void; // trigger navigation to logged in page
+  onSubmitSignIn?: () => void;
 };
 
-function PrimaryButton({ onClick, disabled }: { onClick?: () => void; disabled?: boolean }) {
+function PrimaryButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   const [pressed, setPressed] = useState(false);
   return (
     <button
@@ -51,6 +59,7 @@ function PrimaryButton({ onClick, disabled }: { onClick?: () => void; disabled?:
 function SignInModal({ open, onClose, onSwitchToSignUp, onSubmitSignIn }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -66,7 +75,7 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSubmitSignIn }: Props)
     try {
       const response = await authAPI.login(email, password);
       localStorage.setItem('access_token', response.data.access_token);
-      localStorage.setItem('user_id', response.data.user_id);
+      localStorage.setItem('user_id', String(response.data.user_id));
       onSubmitSignIn?.();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Login failed');
@@ -76,11 +85,7 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSubmitSignIn }: Props)
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 1000 }}
-    >
+    <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 1000 }}>
       <div
         style={{
           position: 'absolute',
@@ -97,7 +102,6 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSubmitSignIn }: Props)
         data-name="Sign in"
         data-node-id="1:174"
       >
-        {/* Back arrow (acts as close) */}
         <button
           onClick={onClose}
           aria-label="Close"
@@ -115,67 +119,62 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSubmitSignIn }: Props)
         >
           <ArrowIcon />
         </button>
-input */}
-        <div style={{ position: 'absolute', left: 100, top: 154, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16 }}>Email</div>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Enter your email"
-          style={{ position: 'absolute', left: 100, top: 180, width: 550, padding: '8px 0', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
-        />
-        <div style={{ position: 'absolute', left: 100, top: 204, width: 550 }}>
-          <div style={underlineStyle} />
-        </div>
 
-        {/* Password label + input */}
-        <div style={{ position: 'absolute', left: 100, top: 235, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16 }}>Password</div>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Enter your password"
-          style={{ position: 'absolute', left: 100, top: 260, width: 550, padding: '8px 0', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
-        />
-        <div style={{ position: 'absolute', left: 100, top: 285, width: 550 }}>
-          <div style={underlineStyle} />
-        </div>
-
-        {/* Error message */}
-        {error && (
-          <div style={{ position: 'absolute', left: 100, top: 305, color: '#d32f2f', fontSize: 12, fontFamily: 'Inter, system-ui, sans-serif' }}>
-            {error}
-          </div>
-        )}splay: 'flex',
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: 90,
+            transform: 'translate(-50%, -50%)',
+            display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#6277ac',
             fontFamily: 'Inter, system-ui, sans-serif',
             fontWeight: 600,
-            fontSize: 40,handleSignIn} disabled={loading
-            textAlign: 'center',
-            pointerEvents: 'none'
+            fontSize: 32,
+            textAlign: 'center'
           }}
         >
           Welcome to Chat CPE
         </div>
 
-        {/* Email label + underline */}
         <div style={{ position: 'absolute', left: 100, top: 154, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16 }}>Email</div>
-        <div style={{ position: 'absolute', left: 100, top: 204, width: 550 }}>
-          <div style={underlineStyle} />
-        </div>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSignIn()}
+          placeholder="Enter your email"
+          style={{ position: 'absolute', left: 100, top: 180, width: 550, padding: '8px 0 8px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
+        />
 
-        {/* Password label + underline */}
         <div style={{ position: 'absolute', left: 100, top: 235, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16 }}>Password</div>
-        <div style={{ position: 'absolute', left: 100, top: 285, width: 550 }}>
-          <div style={underlineStyle} />
-        </div>
+        <input
+          type={showPassword ? 'text' : 'password'}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSignIn()}
+          placeholder="Enter your password"
+          style={{ position: 'absolute', left: 100, top: 260, width: 550, padding: '8px 60px 8px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
+        />
+        <button
+          type="button"
+          onClick={() => setShowPassword((prev) => !prev)}
+          aria-label={showPassword ? 'Hide password' : 'Show password'}
+          style={{ position: 'absolute', left: 600, top: 265, width: 30, height: 30, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <EyeIcon open={showPassword} />
+        </button>
 
-        {/* CTA triggers parent navigation (does not auto-close unless parent changes state) */}
-        <PrimaryButton onClick={onSubmitSignIn} />
+        {error && (
+          <div style={{ position: 'absolute', left: 100, top: 305, color: '#d32f2f', fontSize: 12, fontFamily: 'Inter, system-ui, sans-serif' }}>
+            {error}
+          </div>
+        )}
 
-        {/* Sign up link */}
+        <PrimaryButton onClick={handleSignIn} disabled={loading} />
+
         <button
           onClick={onSwitchToSignUp}
           style={{

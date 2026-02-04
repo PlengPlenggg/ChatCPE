@@ -1,13 +1,21 @@
 import React, { useState } from 'react';
 import { authAPI } from '../services/api';
 
-// Inline replacements for performance (remove remote image fetch)
 const ArrowIcon = () => (
   <svg width={25} height={25} viewBox="0 0 24 24" fill="none" stroke="#6277ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="12 19 5 12 12 5" />
     <line x1="19" y1="12" x2="5" y2="12" />
   </svg>
 );
+
+const EyeIcon = ({ open }: { open: boolean }) => (
+  <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#6277ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+    <circle cx="12" cy="12" r="3" />
+    {!open && <line x1="3" y1="3" x2="21" y2="21" />}
+  </svg>
+);
+
 const underlineStyle: React.CSSProperties = { width: '100%', height: 1, background: '#6277ac', opacity: 0.9 };
 
 type Props = {
@@ -45,10 +53,14 @@ function PrimaryButton({ onClick, disabled }: { onClick: () => void; disabled?: 
     </button>
   );
 }
-const [name, setName] = useState('');
+
+function SignUpModal({ open, onBackToSignIn }: Props) {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -68,16 +80,15 @@ const [name, setName] = useState('');
     try {
       const response = await authAPI.register(name, email, password, confirmPassword);
       localStorage.setItem('access_token', response.data.access_token);
-      localStorage.setItem('user_id', response.data.user_id);
-      window.location.href = '/dashboard';
+      localStorage.setItem('user_id', String(response.data.user_id));
+      onBackToSignIn();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Registration failed');
     } finally {
       setLoading(false);
     }
-  }
-function SignUpModal({ open, onBackToSignIn }: Props) {
-  if (!open) return null;
+  };
+
   return (
     <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 1000 }}>
       <div
@@ -96,7 +107,6 @@ function SignUpModal({ open, onBackToSignIn }: Props) {
         data-name="Sign up"
         data-node-id="34:374"
       >
-        {/* Back arrow (return to sign in) */}
         <button
           onClick={onBackToSignIn}
           aria-label="Back to Sign in"
@@ -108,97 +118,94 @@ function SignUpModal({ open, onBackToSignIn }: Props) {
             height: 50,
             background: 'transparent',
             border: 'none',
-            cursor: 'pointe+ input */}
-        <div style={{ position: 'absolute', left: 100, top: 154, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16 }}>Username</div>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Enter your full name"
-          style={{ position: 'absolute', left: 100, top: 180, width: 550, padding: '8px 0', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
-        />
-        <div style={{ position: 'absolute', left: 100, top: 204, width: 550 }}>
-          <div style={underlineStyle} />
-        </div>
+            cursor: 'pointer'
+          }}
+        >
+          <ArrowIcon />
+        </button>
 
-        {/* Email label + input */}
-        <div style={{ position: 'absolute', left: 100, top: 235, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16 }}>Email</div>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Enter your email (@mail.kmutt.ac.th)"
-          style={{ position: 'absolute', left: 100, top: 261, width: 550, padding: '8px 0', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
-        />
-        <div style={{ position: 'absolute', left: 100, top: 285, width: 550 }}>
-          <div style={underlineStyle} />
-        </div>
-
-        {/* Password label + input */}
-        <div style={{ position: 'absolute', left: 100, top: 316, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16 }}>Password</div>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Enter a password"
-          style={{ position: 'absolute', left: 100, top: 342, width: 550, padding: '8px 0', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
-        />
-        <div style={{ position: 'absolute', left: 100, top: 366, width: 550 }}>
-          <div style={underlineStyle} />
-        </div>
-
-        {/* Confirm Password label + input */}
-        <div style={{ position: 'absolute', left: 100, top: 397, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16 }}>Confirm Password</div>
-        <input
-          type="password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          placeholder="Confirm your password"
-          style={{ position: 'absolute', left: 100, top: 423, width: 550, padding: '8px 0', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
-        />
-        <div style={{ position: 'absolute', left: 100, top: 447, width: 550 }}>
-          <div style={underlineStyle} />
-        </div>
-
-        {/* Error message */}
-        {error && (
-          <div style={{ position: 'absolute', left: 100, top: 467, color: '#d32f2f', fontSize: 12, fontFamily: 'Inter, system-ui, sans-serif' }}>
-            {error}handleSignUp} disabled={loading
-          </div>
-        )}ntSize: 40,
-            textAlign: 'center',
-            pointerEvents: 'none'
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: 90,
+            transform: 'translate(-50%, -50%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#6277ac',
+            fontFamily: 'Inter, system-ui, sans-serif',
+            fontWeight: 600,
+            fontSize: 32,
+            textAlign: 'center'
           }}
         >
           Create your account
         </div>
 
-        {/* Username label */}
         <div style={{ position: 'absolute', left: 100, top: 154, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16 }}>Username</div>
-        <div style={{ position: 'absolute', left: 100, top: 204, width: 550 }}>
-          <div style={underlineStyle} />
-        </div>
-
-        {/* Email label */}
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
+          placeholder="Enter your full name"
+          style={{ position: 'absolute', left: 100, top: 180, width: 550, padding: '8px 0 8px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
+        />
+        
         <div style={{ position: 'absolute', left: 100, top: 235, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16 }}>Email</div>
-        <div style={{ position: 'absolute', left: 100, top: 285, width: 550 }}>
-          <div style={underlineStyle} />
-        </div>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
+          placeholder="Enter your email (@mail.kmutt.ac.th)"
+          style={{ position: 'absolute', left: 100, top: 261, width: 550, padding: '8px 0 8px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
+        />
 
-        {/* Password label */}
         <div style={{ position: 'absolute', left: 100, top: 316, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16 }}>Password</div>
-        <div style={{ position: 'absolute', left: 100, top: 366, width: 550 }}>
-          <div style={underlineStyle} />
-        </div>
+        <input
+          type={showPassword ? 'text' : 'password'}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
+          placeholder="Enter a password"
+          style={{ position: 'absolute', left: 100, top: 342, width: 550, padding: '8px 60px 8px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
+        />
+        <button
+          type="button"
+          onClick={() => setShowPassword((prev) => !prev)}
+          aria-label={showPassword ? 'Hide password' : 'Show password'}
+          style={{ position: 'absolute', left: 600, top: 347, width: 30, height: 30, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <EyeIcon open={showPassword} />
+        </button>
 
-        {/* Confirm Password label */}
         <div style={{ position: 'absolute', left: 100, top: 397, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16 }}>Confirm Password</div>
-        <div style={{ position: 'absolute', left: 100, top: 447, width: 550 }}>
-          <div style={underlineStyle} />
-        </div>
+        <input
+          type={showConfirmPassword ? 'text' : 'password'}
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
+          placeholder="Confirm your password"
+          style={{ position: 'absolute', left: 100, top: 423, width: 550, padding: '8px 60px 8px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
+        />
+        <button
+          type="button"
+          onClick={() => setShowConfirmPassword((prev) => !prev)}
+          aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+          style={{ position: 'absolute', left: 600, top: 428, width: 30, height: 30, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <EyeIcon open={showConfirmPassword} />
+        </button>
 
-        {/* CTA: sign up then swap back to sign in overlay */}
-        <PrimaryButton onClick={onBackToSignIn} />
+        {error && (
+          <div style={{ position: 'absolute', left: 100, top: 467, color: '#d32f2f', fontSize: 12, fontFamily: 'Inter, system-ui, sans-serif' }}>
+            {error}
+          </div>
+        )}
+
+        <PrimaryButton onClick={handleSignUp} disabled={loading} />
       </div>
     </div>
   );

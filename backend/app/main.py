@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 import os
-from app.api import auth, chat, files, faq
+from app.api import auth, chat, files, faq, documents
 from app.config import DATABASE_URL, UPLOAD_DIR
 from app.models.database import Base, engine
 
@@ -40,6 +40,7 @@ app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 app.include_router(faq.router, prefix="/faq", tags=["FAQ"])
 app.include_router(files.router, prefix="/files", tags=["Documents"])
+app.include_router(documents.router, prefix="/documents", tags=["Documents"])
 
 @app.get("/")
 async def root():

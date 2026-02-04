@@ -88,11 +88,8 @@ function EditProfileModal({ onBack, onSave }: EditProfileModalProps) {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           placeholder="Enter new username"
-          style={{ position: 'absolute', left: 100, top: 235, width: 550, padding: '8px 0', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
+          style={{ position: 'absolute', left: 100, top: 260, width: 550, padding: '8px 60px 8px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
         />
-        <div style={{ position: 'absolute', left: 100, top: 261, width: 550 }}>
-          <div style={underlineStyle} />
-        </div>
 
         {/* Error message */}
         {error && (

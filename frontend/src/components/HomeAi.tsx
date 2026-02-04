@@ -1,17 +1,21 @@
 import React, { useState, useCallback, useMemo, Suspense, useEffect } from 'react';
-import { faqAPI } from '../services/api';
+import { faqAPI, chatAPI } from '../services/api';
+import FAQsAccordion from './FAQsAccordion';
+import DocumentsPage from './DocumentsPage';
 const SignInModal = React.lazy(() => import('./SignInModal'));
 const SignUpModal = React.lazy(() => import('./SignUpModal'));
 
-const imgLogoCpe = "https://www.figma.com/api/mcp/asset/5ead37b8-0b06-4579-a22c-ab76303fc739";
-const imgNewChat = "https://www.figma.com/api/mcp/asset/13520a87-5b57-47cf-88fb-44389e773b6a";
-const imgIcon = "https://www.figma.com/api/mcp/asset/a9fd42b3-6dd5-45c7-9fcc-b0f6c76602f1";
-const imgIcon1 = "https://www.figma.com/api/mcp/asset/a942c11a-5bc3-4521-afef-725ca64e56bb";
-const imgLine1 = "https://www.figma.com/api/mcp/asset/7fe8991d-2258-4f8c-88e5-c8ae4893d32e";
-const img = "https://www.figma.com/api/mcp/asset/4c20ca8d-22e3-4466-b61d-868765075c02";
-const img1 = "https://www.figma.com/api/mcp/asset/87e62f57-e565-430b-88fc-8fd24ef45113";
-const img2 = "https://www.figma.com/api/mcp/asset/e20bd231-fa71-4e49-add9-1a0a996b5262";
-const img3 = "https://www.figma.com/api/mcp/asset/ec710b3d-d4e5-4369-91f9-8497f013950b";
+// Image paths from public/images folder
+const imgLogoCpe = "/images/LogoCPE.png";        
+const imgNewChat = "/images/Newchat.png";  
+const imgIcon = "/images/Login.png";           
+const imgIcon1 = "/images/Logout.png";          
+const imgLine1 = "/images/Line1.png";           
+const img = "/images/Arrow.png";             
+const img1 = "/images/Paperclip.png";            
+const img2 = "/images/Star.png";                 
+const img3 = "/images/Messagecircle.png";                
+
 
 function LogIn({ style }: { style?: React.CSSProperties }) {
   return (
@@ -71,6 +75,9 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
   const [modal, setModal] = useState<'none' | 'signin' | 'signup'>('none');
   const [selected, setSelected] = useState<'ai' | 'qa' | 'doc'>('ai');
   const [faqs, setFaqs] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Array<{ id: number; role: 'user' | 'bot'; text: string }>>([]);
+  const [input, setInput] = useState('');
+  const [nextId, setNextId] = useState(1);
 
   useEffect(() => {
     loadFAQs();
@@ -94,6 +101,44 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
   const handleSubmitSignIn = useCallback(() => {
     onSignedIn && onSignedIn();
   }, [onSignedIn]);
+  const handleNewChat = useCallback(() => {
+    setSelected('ai');
+    setMessages([]);
+    setInput('');
+    setNextId(1);
+  }, []);
+  const handleSend = useCallback(async () => {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    const startId = nextId;
+    setNextId((prev) => prev + 2);
+    // Add user message
+    setMessages((prev) => [
+      ...prev,
+      { id: startId, role: 'user', text: trimmed }
+    ]);
+    setInput('');
+
+    try {
+      // Call backend API with guest mode (no user_id)
+      // Generate a temporary thread_id for guest users
+      const tempThreadId = `guest-${Date.now()}`;
+      const response = await chatAPI.sendMessage(trimmed, tempThreadId);
+      const llmResponse = response.data?.answer || 'ไม่สามารถได้รับคำตอบ';
+      // Add bot response
+      setMessages((prev) => [
+        ...prev,
+        { id: startId + 1, role: 'bot', text: llmResponse }
+      ]);
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      // Add error message
+      setMessages((prev) => [
+        ...prev,
+        { id: startId + 1, role: 'bot', text: 'เกิดข้อผิดพลาดในการประมวลผลข้อความ' }
+      ]);
+    }
+  }, [input, nextId]);
   return (
     <div
       data-name="Home - ai"
@@ -109,8 +154,20 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
       <div style={{ position: 'absolute', left: 0, top: 0, width: 285, height: 730, background: '#e4eef8' }} />
 
       {/* Logo */}
-      <div style={{ position: 'absolute', left: 42, top: 19, width: 143, height: 122, overflow: 'hidden', pointerEvents: 'none' }}>
-        <img alt="CPE Logo" src={imgLogoCpe} style={{ position: 'absolute', width: '212.39%', height: '140.6%', left: '-112.38%', top: '-18.6%' }} />
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 12,
+          width: 285,
+          height: 120,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: 'none'
+        }}
+      >
+        <img alt="CPE Logo" src={imgLogoCpe} style={{ maxWidth: '70%', maxHeight: '100%', objectFit: 'contain' }} />
       </div>
 
       {/* Divider line */}
@@ -126,13 +183,13 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
       <button onClick={() => setSelected('ai')} style={{ position: 'absolute', left: 70, top: 266, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
         <div style={{ position: 'absolute', inset: '12.5%' }}>
           <div style={{ position: 'absolute', inset: '-5.93%' }}>
-            <img alt="" src={img3} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'ai' ? 'none' : 'brightness(0) saturate(100%) invert(46%) sepia(10%) saturate(842%) hue-rotate(178deg) brightness(94%) contrast(87%)' }} />
+            <img alt="" src={img3} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'ai' ? 'brightness(0) saturate(100%)' : 'brightness(0) saturate(100%) invert(46%) sepia(10%) saturate(842%) hue-rotate(178deg) brightness(94%) contrast(87%)' }} />
           </div>
         </div>
       </button>
       <button onClick={() => setSelected('ai')} style={{ position: 'absolute', left: 109.47, top: 275.48, transform: 'translateY(-50%)', color: selected === 'ai' ? '#000' : '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>AI Chat</button>
 
-      {/* Q & A */}
+      {/* FAQs */}
       <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: 70, top: 319, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
         <div style={{ position: 'absolute', inset: '8.33% 8.33% 12.42% 8.33%' }}>
           <div style={{ position: 'absolute', inset: '-5.61% -5.33%' }}>
@@ -140,7 +197,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
           </div>
         </div>
       </button>
-      <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: 109.47, top: 328.48, transform: 'translateY(-50%)', color: selected === 'qa' ? '#000' : '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Q & A</button>
+      <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: 109.47, top: 328.48, transform: 'translateY(-50%)', color: selected === 'qa' ? '#000' : '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>FAQs</button>
 
       {/* Document */}
       <button onClick={() => setSelected('doc')} style={{ position: 'absolute', left: 70, top: 372, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
@@ -153,16 +210,41 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
       <button onClick={() => setSelected('doc')} style={{ position: 'absolute', left: 109.47, top: 381.48, transform: 'translateY(-50%)', color: selected === 'doc' ? '#000' : '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Document</button>
 
       {/* New chat */}
-      <div style={{ position: 'absolute', left: 70, top: 186.83, width: 34, height: 27, overflow: 'hidden' }}>
-        <img alt="New chat" src={imgNewChat} style={{ position: 'absolute', width: 25, height: 25, left: 0, bottom: 3, opacity: 0.9 }} />
-      </div>
-      <div style={{ position: 'absolute', left: 109.47, top: 196.31, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16 }}>New Chat</div>
+      <button onClick={handleNewChat} style={{ position: 'absolute', left: 70, top: 186.83, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+        <div style={{ position: 'absolute', inset: '5% 10% 5% 10%' }}>
+          <div style={{ position: 'absolute', inset: '-5%' }}>
+            <img alt="New chat" src={imgNewChat} style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain', opacity: 0.9 }} />
+          </div>
+        </div>
+      </button>
+      <button onClick={handleNewChat} style={{ position: 'absolute', left: 109.47, top: 196.31, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>New Chat</button>
 
-      {/* Welcome text (only visible on AI) */}
-      {selected === 'ai' && (
+      {/* Welcome text (only visible on AI when no messages) */}
+      {selected === 'ai' && messages.length === 0 && (
         <div style={{ position: 'absolute', left: 912.76, top: 236.5, transform: 'translate(-50%, -50%)', width: 995, height: 197, textAlign: 'center' }}>
           <p style={{ margin: 0, color: '#757575', fontSize: 70, fontWeight: 600 }}>Hello</p>
           <p style={{ margin: 0, fontSize: 70, fontWeight: 600, background: 'linear-gradient(90deg, #faa538 20%, #708ac4 52%, #4960ac 81%)', WebkitBackgroundClip: 'text', color: 'transparent' }}>Welcome to Chat CPE</p>
+        </div>
+      )}
+
+      {/* Chat display (only visible when messages exist) */}
+      {selected === 'ai' && messages.length > 0 && (
+        <div style={{ position: 'absolute', left: 371, top: 180, right: 40, height: 370, overflow: 'auto', padding: 20, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 12 }}>
+          {messages.map((msg) => (
+            <div key={msg.id} style={{ marginBottom: 12, display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+              <div
+                style={{
+                  maxWidth: '60%',
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  background: msg.role === 'user' ? '#e6efff' : '#f4f6fb',
+                  color: '#2b2b2b'
+                }}
+              >
+                {msg.text}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -170,8 +252,21 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
       {selected === 'ai' && (
         <div style={{ position: 'absolute', left: 371, top: 567.78, width: 1084.255, height: 110.852 }}>
           <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid #4960ac', borderRadius: 15 }} />
-          <div style={{ position: 'absolute', left: 1395.68 - 371, top: 625.91 - 567.78, width: 40, height: 40, borderRadius: 100, background: '#7587b8' }} />
-          <div style={{ position: 'absolute', left: 1401.89 - 371, top: 632.11 - 567.78, width: 27.586, height: 27.586, overflow: 'hidden' }}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSend();
+            }}
+            placeholder="พิมพ์ข้อความที่นี่..."
+            style={{ position: 'absolute', left: 20, top: 26, right: 80, height: 58, border: 'none', outline: 'none', fontSize: 16, background: 'transparent' }}
+          />
+          <button
+            onClick={handleSend}
+            style={{ position: 'absolute', left: 1395.68 - 371, top: 625.91 - 567.78, width: 40, height: 40, borderRadius: 100, background: '#7587b8', border: 'none', cursor: 'pointer' }}
+            aria-label="Send"
+          />
+          <div style={{ position: 'absolute', left: 1401.89 - 371, top: 632.11 - 567.78, width: 27.586, height: 27.586, overflow: 'hidden', pointerEvents: 'none' }}>
             <div style={{ position: 'absolute', inset: '20.83%' }}>
               <div style={{ position: 'absolute', inset: '-7.77%' }}>
                 <img alt="" src={img} style={{ display: 'block', width: '100%', height: '100%' }} />
@@ -183,37 +278,14 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
 
       {/* Placeholder Q&A content */}
       {selected === 'qa' && (
-        <div style={{ position: 'absolute', left: 371, top: 250, width: 800, minHeight: 300, padding: 24, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 12 }}>
-          <h2 style={{ marginTop: 0, color: '#4960ac', fontFamily: 'Inter, system-ui, sans-serif' }}>Frequently Asked Questions</h2>
-          {faqs.length > 0 ? (
-            faqs.map((faq) => (
-              <div key={faq.id} style={{ marginBottom: 16, padding: 12, background: '#f5f5f5', borderRadius: 8 }}>
-                <h4 style={{ margin: '0 0 8px 0', color: '#4960ac' }}>{faq.question}</h4>
-                <p style={{ margin: 0, color: '#6277ac', fontSize: 14 }}>{faq.answer}</p>
-              </div>
-            ))
-          ) : (
-            <p style={{ color: '#6277ac' }}>No FAQs available</p>
-          )}
+        <div style={{ position: 'absolute', left: 371, top: 180, right: 40, maxHeight: 500, overflow: 'auto', padding: 24, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 12 }}>
+          <FAQsAccordion faqs={faqs} />
         </div>
       )}
 
-      {/* Placeholder Document content */}
       {selected === 'doc' && (
-        <div style={{ position: 'absolute', left: 371, top: 250, width: 900, minHeight: 360, padding: 32, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 16 }}>
-          <h2 style={{ marginTop: 0, color: '#4960ac', fontFamily: 'Inter, system-ui, sans-serif' }}>Documents</h2>
-          <p style={{ color: '#6277ac', lineHeight: '1.5' }}>
-            A list of imported documents will appear here. You can later replace this placeholder with an upload
-            area or a document navigator.
-          </p>
-          <ul style={{ paddingLeft: 18, margin: 0, color: '#000' }}>
-            <li style={{ marginBottom: 8 }}>Example.pdf</li>
-            <li style={{ marginBottom: 8 }}>Syllabus.docx</li>
-            <li style={{ marginBottom: 8 }}>Notes.txt</li>
-          </ul>
-          <div style={{ marginTop: 24, padding: 12, border: '1px dashed #7587b8', borderRadius: 8, background: '#f0f6fe' }}>
-            <span style={{ color: '#6277ac' }}>Placeholder: drag & drop files here (to implement later)</span>
-          </div>
+        <div style={{ position: 'absolute', left: 371, top: 130, right: 40, maxHeight: 550, overflow: 'auto', padding: 24, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 16 }}>
+          <DocumentsPage />
         </div>
       )}
 

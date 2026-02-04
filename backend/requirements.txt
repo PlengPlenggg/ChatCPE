@@ -6,14 +6,16 @@ pydantic-settings
 pydantic[email]
 sqlalchemy
 python-multipart
-transformers
-torch
+# transformers
+# torch
 pdf2image
 PyPDF2
 Pillow
 aiofiles
 bcrypt
+argon2-cffi
 python-jose[cryptography]
 passlib[bcrypt]
 requests
 python-dotenv
+beautifulsoup4

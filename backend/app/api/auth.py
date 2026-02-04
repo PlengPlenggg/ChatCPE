@@ -6,18 +6,20 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 import hashlib
+import base64
 from app.models.models import User
 from app.models.database import get_db
 from app.config import SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES
 
 router = APIRouter()
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing - support argon2 + bcrypt for backward compatibility
+pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
 
 # JWT settings
 ALGORITHM = "HS256"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 
 # Constants
 ALLOWED_ROLES = ["admin", "staff", "user"]
@@ -54,14 +56,12 @@ class Token(BaseModel):
 
 # Helper functions
 def hash_password(password: str) -> str:
-    # Pre-hash with SHA256 to bypass bcrypt's 72-byte limit
-    prehashed = hashlib.sha256(password.encode('utf-8')).hexdigest()
-    return pwd_context.hash(prehashed)
+    # Hash password using argon2 (no byte length limit)
+    return pwd_context.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    # Pre-hash to match what was stored
-    prehashed = hashlib.sha256(plain_password.encode('utf-8')).hexdigest()
-    return pwd_context.verify(prehashed, hashed_password)
+    # Verify password against argon2 hash
+    return pwd_context.verify(plain_password, hashed_password)
 
 
 def is_email_allowed(email: str) -> bool:
@@ -79,18 +79,34 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     return encoded_jwt
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    import sys
+    print(f"DEBUG: Received token: {token[:20]}...", file=sys.stderr)
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        print(f"DEBUG: JWT payload: {payload}", file=sys.stderr)
+        user_id_raw = payload.get("sub")
+        if user_id_raw is None:
+            raise HTTPException(status_code=401, detail="Invalid token: missing subject")
+        # Convert to int in case JWT decoding returns string
+        user_id: int = int(user_id_raw) if isinstance(user_id_raw, str) else user_id_raw
+        print(f"DEBUG: Extracted user_id: {user_id}", file=sys.stderr)
+    except JWTError as e:
+        print(f"DEBUG: JWTError: {str(e)}", file=sys.stderr)
+        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+    except (ValueError, TypeError) as e:
+        print(f"DEBUG: ValueError/TypeError: {str(e)}", file=sys.stderr)
+        raise HTTPException(status_code=401, detail="Invalid token: malformed user ID")
     
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+
+def get_current_user_optional(token: str = Depends(oauth2_scheme_optional), db: Session = Depends(get_db)):
+    if not token:
+        return None
+    return get_current_user(token=token, db=db)
 
 
 def require_roles(allowed_roles: list[str]):
@@ -130,7 +146,7 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     
     # Create access token
     access_token = create_access_token(
-        data={"sub": new_user.id},
+        data={"sub": str(new_user.id)},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     
@@ -145,7 +161,7 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     
     # Create access token
     access_token = create_access_token(
-        data={"sub": user.id},
+        data={"sub": str(user.id)},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     

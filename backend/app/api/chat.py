@@ -1,10 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 import requests
+import uuid
+from datetime import datetime
 from app.models.models import Chat, Answer, User
 from app.models.database import get_db
 from app.config import OPENWEBUI_URL, OPENWEBUI_API_KEY
+from app.api.auth import get_current_user, get_current_user_optional
 from pydantic import BaseModel
+from typing import Optional, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,21 +16,36 @@ router = APIRouter()
 
 class ChatMessage(BaseModel):
     message: str
-    user_id: int = None
+    thread_id: str  # ID ของ thread ที่จะส่งข้อความไป
+    user_id: Optional[int] = None
 
 class ChatResponse(BaseModel):
-    chat_id: int
+    chat_id: Optional[int]
     message: str
     answer: str
+    thread_id: str
+
+class ThreadData(BaseModel):
+    id: str
+    title: str
+    created_at: str
+    messages: List[dict]
 
 @router.post("/send", response_model=ChatResponse)
-async def send_message(chat_msg: ChatMessage, db: Session = Depends(get_db)):
+async def send_message(
+    chat_msg: ChatMessage, 
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
     """
     ส่ง message ไปให้ LLM ผ่าน Open WebUI
-    บันทึก chat และ answer ลง database
+    บันทึก chat และ answer ลง database (ถ้า authenticated user)
+    รองรับทั้ง guest mode (ไม่บันทึก) และ logged-in mode (บันทึก)
     """
     try:
-        logger.info(f"Received message: {chat_msg.message} from user: {chat_msg.user_id}")
+        user_id_from_msg = chat_msg.user_id or (current_user.id if current_user else None)
+        thread_id = chat_msg.thread_id
+        logger.info(f"Received message: {chat_msg.message} from user/guest: {user_id_from_msg}, thread: {thread_id}")
         logger.info(f"Calling Open WebUI at: {OPENWEBUI_URL}")
         
         # ส่ง message ไปให้ Open WebUI
@@ -43,51 +62,42 @@ async def send_message(chat_msg: ChatMessage, db: Session = Depends(get_db)):
         }
         logger.info(f"Payload: {payload}")
         
-        # เรียก Open WebUI completions API
-        response = requests.post(
-            f"{OPENWEBUI_URL}/api/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=60
-        )
-        
-        logger.info(f"Open WebUI response status: {response.status_code}")
-        logger.info(f"Open WebUI response: {response.text[:500]}")
-        
-        if not response.ok:
-            logger.error(f"Open WebUI error {response.status_code}: {response.text}")
-            # ตอบกลับ error message ที่เข้าใจได้
-            if response.status_code == 404:
-                raise HTTPException(
-                    status_code=503,
-                    detail="Open WebUI service not found. Check OPENWEBUI_URL configuration."
-                )
-            elif response.status_code == 401:
-                raise HTTPException(
-                    status_code=503,
-                    detail="Open WebUI authentication failed. Check OPENWEBUI_API_KEY."
-                )
-            else:
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Open WebUI service error: {response.status_code}"
-                )
-        
-        data = response.json()
-        logger.info(f"Open WebUI parsed response: {str(data)[:500]}")
-        
-        # ดึง response จาก Open WebUI
+        # Try to call Open WebUI, but fall back to mock response if unavailable
+        llm_response = None
         try:
-            llm_response = data["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError) as e:
-            logger.error(f"Failed to parse Open WebUI response: {str(e)}")
-            llm_response = "Sorry, I couldn't parse the response properly."
+            response = requests.post(
+                f"{OPENWEBUI_URL}/api/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=5  # Reduced timeout to 5 seconds
+            )
+            
+            logger.info(f"Open WebUI response status: {response.status_code}")
+            
+            if response.ok:
+                data = response.json()
+                logger.info(f"Open WebUI parsed response: {str(data)[:500]}")
+                try:
+                    llm_response = data["choices"][0]["message"]["content"]
+                except (KeyError, IndexError, TypeError) as e:
+                    logger.error(f"Failed to parse Open WebUI response: {str(e)}")
+            else:
+                logger.warning(f"Open WebUI returned error {response.status_code}")
+                
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            logger.warning(f"Open WebUI unavailable: {str(e)}. Using mock response.")
         
-        # บันทึก chat ลง database เฉพาะเมื่อมี user_id (ไม่ใช่ guest)
+        # If Open WebUI failed, use a mock response
+        if not llm_response:
+            llm_response = f"ขอบคุณสำหรับคำถาม: '{chat_msg.message}'\n\nขณะนี้ระบบ AI กำลังอยู่ในช่วงปรับปรุง ดังนั้นจึงไม่สามารถตอบคำถามได้ในขณะนี้\n\nกรุณาติดต่อเจ้าหน้าที่เพื่อขอความช่วยเหลือ หรือลองใหม่อีกครั้งในภายหลัง"
+            logger.info("Using mock response due to Open WebUI unavailability")
+        
+        # บันทึก chat ลง database เฉพาะเมื่อมี user_id (logged-in user)
         chat_id = None
-        if chat_msg.user_id:
+        if user_id_from_msg:
             chat = Chat(
-                user_id=chat_msg.user_id,
+                user_id=user_id_from_msg,
+                thread_id=thread_id,
                 message=chat_msg.message,
             )
             db.add(chat)
@@ -111,29 +121,12 @@ async def send_message(chat_msg: ChatMessage, db: Session = Depends(get_db)):
         return ChatResponse(
             chat_id=chat_id or 0,
             message=chat_msg.message,
-            answer=llm_response
+            answer=llm_response,
+            thread_id=thread_id
         )
         
     except HTTPException:
         raise
-    except requests.exceptions.Timeout:
-        logger.error("Open WebUI timeout")
-        raise HTTPException(
-            status_code=504,
-            detail="LLM service timeout. Please try again later."
-        )
-    except requests.exceptions.ConnectionError as e:
-        logger.error(f"Connection error to Open WebUI: {str(e)}")
-        raise HTTPException(
-            status_code=503,
-            detail="Cannot connect to Open WebUI. Check if service is running and OPENWEBUI_URL is correct."
-        )
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Request error: {str(e)}")
-        raise HTTPException(
-            status_code=503,
-            detail=f"Error communicating with LLM: {str(e)}"
-        )
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -171,33 +164,81 @@ async def chat_health():
         }
 
 
-@router.get("/history/{user_id}")
-async def get_chat_history(user_id: int, db: Session = Depends(get_db)):
+@router.post("/threads/create")
+async def create_thread(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
     """
-    ดึงประวัติการสนทนาของผู้ใช้
-    รวมทั้ง chat messages และ answers จาก LLM
+    สร้าง thread ใหม่สำหรับการสนทนา
     """
     try:
-        chats = db.query(Chat).filter(Chat.user_id == user_id).order_by(Chat.created_at.desc()).all()
+        thread_id = str(uuid.uuid4())
+        return {
+            "thread_id": thread_id,
+            "created_at": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error creating thread: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/history")
+async def get_chat_history(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    ดึงประวัติการสนทนาของผู้ใช้ แยกเป็น threads
+    """
+    try:
+        chats = db.query(Chat).filter(Chat.user_id == current_user.id).order_by(Chat.created_at.asc()).all()
         
-        result = []
+        # จัดกลุ่มข้อความตามแต่ละ thread
+        threads_dict = {}
+        
         for chat in chats:
-            result.append({
+            thread_id = chat.thread_id
+            if thread_id not in threads_dict:
+                threads_dict[thread_id] = {
+                    "id": thread_id,
+                    "messages": [],
+                    "created_at": chat.created_at.isoformat() if chat.created_at else None
+                }
+            
+            # เพิ่ม user message
+            threads_dict[thread_id]["messages"].append({
                 "id": chat.id,
-                "message": chat.message,
-                "created_at": chat.created_at.isoformat() if chat.created_at else None,
-                "answers": [
-                    {
-                        "id": ans.id,
-                        "answer": ans.answer,
-                        "llm_provider": ans.llm_provider,
-                        "created_at": ans.created_at.isoformat() if ans.created_at else None
-                    }
-                    for ans in chat.answers
-                ]
+                "role": "user",
+                "text": chat.message,
+                "created_at": chat.created_at.isoformat() if chat.created_at else None
+            })
+            
+            # เพิ่ม bot answers
+            for answer in chat.answers:
+                threads_dict[thread_id]["messages"].append({
+                    "id": answer.id,
+                    "role": "bot",
+                    "text": answer.answer,
+                    "created_at": answer.created_at.isoformat() if answer.created_at else None
+                })
+        
+        # สร้าง title สำหรับแต่ละ thread จากข้อความแรก
+        threads_list = []
+        for thread_id, thread_data in threads_dict.items():
+            first_message = next((msg for msg in thread_data["messages"] if msg["role"] == "user"), None)
+            title = first_message["text"][:50] + "..." if first_message and len(first_message["text"]) > 50 else (first_message["text"] if first_message else "Untitled")
+            
+            threads_list.append({
+                "id": thread_id,
+                "title": title,
+                "created_at": thread_data["created_at"],
+                "messages": thread_data["messages"]
             })
         
-        return result
+        # เรียงลำดับจากล่าสุดมาก่อน
+        threads_list.sort(key=lambda x: x["created_at"], reverse=True)
+        
+        return threads_list
     except Exception as e:
         logger.error(f"Error getting chat history: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -234,22 +275,26 @@ async def test_openwebui():
             "openwebui_url": OPENWEBUI_URL
         }
 
-@router.get("/history/{user_id}")
-async def get_chat_history(user_id: int, db: Session = Depends(get_db)):
-    """ดึง chat history ของผู้ใช้"""
-    chats = db.query(Chat).filter(Chat.user_id == user_id).order_by(Chat.created_at.desc()).all()
-    
-    # จัดรูปแบบ response เพื่อให้ frontend ใช้ได้
-    result = []
-    for chat in chats:
-        answers = db.query(Answer).filter(Answer.chat_id == chat.id).all()
-        chat_data = {
-            "id": chat.id,
-            "user_id": chat.user_id,
-            "message": chat.message,
-            "answers": [{"answer": ans.answer, "llm_provider": ans.llm_provider} for ans in answers],
-            "created_at": chat.created_at
-        }
-        result.append(chat_data)
-    
-    return result
+
+@router.delete("/history")
+async def delete_chat_history(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    ลบประวัติการสนทนาของผู้ใช้ (ทั้ง Chat และ Answer)
+    """
+    try:
+        chats = db.query(Chat).filter(Chat.user_id == current_user.id).all()
+        if not chats:
+            return {"message": "No chat history to delete"}
+
+        chat_ids = [c.id for c in chats]
+        db.query(Answer).filter(Answer.chat_id.in_(chat_ids)).delete(synchronize_session=False)
+        db.query(Chat).filter(Chat.id.in_(chat_ids)).delete(synchronize_session=False)
+        db.commit()
+        return {"message": "Chat history deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting chat history: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

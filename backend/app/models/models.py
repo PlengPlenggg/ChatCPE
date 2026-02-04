@@ -80,6 +80,7 @@ class Chat(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    thread_id = Column(String, nullable=False)  # เพื่อจัดกลุ่มข้อความเป็น threads
     message = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     context_chunk_id = Column(Integer, ForeignKey("chunks.id"), nullable=True)
