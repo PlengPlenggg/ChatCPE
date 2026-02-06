@@ -12,6 +12,9 @@ class User(Base):
     role = Column(String, default="user")
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
+    is_verified = Column(Boolean, default=False, nullable=False)
+    verification_token = Column(String, nullable=True)
+    verification_sent_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships

@@ -63,6 +63,7 @@ function SignUpModal({ open, onBackToSignIn }: Props) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   if (!open) return null;
 
@@ -77,11 +78,10 @@ function SignUpModal({ open, onBackToSignIn }: Props) {
     }
     setLoading(true);
     setError('');
+    setSuccessMessage('');
     try {
       const response = await authAPI.register(name, email, password, confirmPassword);
-      localStorage.setItem('access_token', response.data.access_token);
-      localStorage.setItem('user_id', String(response.data.user_id));
-      onBackToSignIn();
+      setSuccessMessage(response.data.message || 'Verification email sent. Please check your inbox.');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Registration failed');
     } finally {
@@ -159,7 +159,7 @@ function SignUpModal({ open, onBackToSignIn }: Props) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
-          placeholder="Enter your email (@mail.kmutt.ac.th)"
+          placeholder="Enter your email (@gmail.com)"
           style={{ position: 'absolute', left: 100, top: 261, width: 550, padding: '8px 0 8px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
         />
 
@@ -205,7 +205,35 @@ function SignUpModal({ open, onBackToSignIn }: Props) {
           </div>
         )}
 
+        {successMessage && (
+          <div style={{ position: 'absolute', left: 100, top: 467, color: '#2e7d32', fontSize: 12, fontFamily: 'Inter, system-ui, sans-serif' }}>
+            {successMessage}
+          </div>
+        )}
+
         <PrimaryButton onClick={handleSignUp} disabled={loading} />
+
+        {successMessage && (
+          <button
+            onClick={onBackToSignIn}
+            style={{
+              position: 'absolute',
+              left: 374.5,
+              top: 525,
+              transform: 'translate(-50%, -50%)',
+              width: 185,
+              height: 22,
+              border: 'none',
+              background: 'transparent',
+              color: '#6277ac',
+              cursor: 'pointer',
+              fontFamily: 'Inter, system-ui, sans-serif',
+              fontSize: 10
+            }}
+          >
+            Back to Sign in
+          </button>
+        )}
       </div>
     </div>
   );

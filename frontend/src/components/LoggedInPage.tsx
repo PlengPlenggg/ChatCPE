@@ -2,6 +2,7 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import { authAPI, faqAPI, chatAPI } from '../services/api';
 import FAQsAccordion from './FAQsAccordion';
 import DocumentsPage from './DocumentsPage';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
 const ProfileModal = React.lazy(() => import('./ProfileModal'));
 const EditProfileModal = React.lazy(() => import('./EditProfileModal'));
@@ -24,6 +25,47 @@ type ChatMessage = { id: number; role: 'user' | 'bot'; text: string; createdAt: 
 type ChatThread = { id: string; title: string; messages: ChatMessage[]; createdAt: number; updatedAt: number };
 
 export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
+  const layout = useResponsiveLayout();
+  const viewHeight = typeof layout.minHeight === 'number' ? layout.minHeight : window.innerHeight;
+  const scale = Math.min(1.15, Math.max(0.85, viewHeight / 900));
+  const sidebarInnerWidth = Math.max(layout.sidebarWidth - Math.round(49 * scale), 180);
+  const sidebarHighlightWidth = Math.max(layout.sidebarWidth - Math.round(55 * scale), 170);
+  const contentLeft = layout.sidebarWidth + Math.round(35 * scale);
+  const sidebarLeftPadding = Math.round(Math.max(12, layout.sidebarWidth * 0.08));
+  const iconLeft = Math.round(Math.max(24, layout.sidebarWidth * 0.25));
+  const labelLeft = Math.round(Math.max(70, layout.sidebarWidth * 0.38));
+
+  const logoTop = Math.round(12 * scale);
+  const logoHeight = Math.round(120 * scale);
+  const dividerTop = Math.round(233 * scale);
+  const newChatTop = Math.round(186.83 * scale);
+  const aiTop = Math.round(266 * scale);
+  const qaTop = Math.round(319 * scale);
+  const docTop = Math.round(372 * scale);
+  const chatHistoryTop = Math.round(430 * scale);
+  const sidebarIconSize = Math.round(18 * scale);
+  const sidebarLabelFont = Math.max(12, Math.round(16 * scale));
+  const sidebarLabelOffset = Math.round(9.5 * scale);
+
+  const chatDisplayTop = Math.round(120 * scale);
+  const faqTop = chatDisplayTop;
+  const docTopContent = Math.round(100 * scale);
+
+  const chatInputHeight = Math.round(96 * scale);
+  const chatInputBottom = Math.round(30 * scale);
+  const chatDisplayBottom = chatInputBottom + chatInputHeight + Math.round(10 * scale);
+  const inputTop = Math.round(26 * scale);
+  const inputHeight = Math.round(58 * scale);
+  const inputRight = Math.round(80 * scale);
+  const sendBtnSize = Math.round(40 * scale);
+  const sendBtnTop = Math.round((chatInputHeight - sendBtnSize) / 2);
+  const sendIconSize = Math.round(28 * scale);
+
+  const profileBottom = Math.round(70 * scale);
+  const profileHeight = Math.round(60 * scale);
+  const logoutBottom = Math.round(30 * scale);
+  const logoutHeight = Math.round(28 * scale);
+  const chatHistoryBottom = profileBottom + profileHeight + Math.round(20 * scale);
   const [selected, setSelected] = useState<'ai' | 'qa' | 'doc'>('ai');
   const [profile, setProfile] = useState<any>(null);
   const [faqs, setFaqs] = useState<any[]>([]);
@@ -31,8 +73,8 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const nextIdRef = useRef(1);
-  const iconPositions: Record<'ai' | 'qa' | 'doc', number> = { ai: 266, qa: 319, doc: 372 };
-  const highlightTop = useMemo(() => iconPositions[selected] - 13, [selected]);
+  const iconPositions: Record<'ai' | 'qa' | 'doc', number> = { ai: aiTop, qa: qaTop, doc: docTop };
+  const highlightTop = useMemo(() => iconPositions[selected] - Math.round(13 * scale), [iconPositions, selected, scale]);
 
   const [profileView, setProfileView] = useState<'none' | 'profile' | 'edit'>('none');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -131,9 +173,10 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
     setSelected('ai');
     setActiveThreadId(id);
   }, []);
-  const handleDeleteThread = useCallback((id: string, e: React.MouseEvent) => {
+  const handleDeleteThread = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
+      await chatAPI.deleteThread(id);
       // Remove only the specific thread from local state
       setThreads((prev) => prev.filter((t) => t.id !== id));
       
@@ -239,17 +282,17 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   }, [onLogout]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', minHeight: 730, background: 'linear-gradient(to bottom, #f0f6fe, #ffffff)' }}>
-      <div style={{ position: 'absolute', left: 0, top: 0, width: 285, height: 730, background: '#e4eef8' }} />
+    <div style={{ position: 'relative', width: '100%', height: '100vh', minHeight: '100vh', overflow: 'hidden', background: 'linear-gradient(to bottom, #f0f6fe, #ffffff)' }}>
+      <div style={{ position: 'absolute', left: 0, top: 0, width: layout.sidebarWidth, height: '100vh', background: '#e4eef8' }} />
 
       {/* Logo */}
       <div
         style={{
           position: 'absolute',
           left: 0,
-          top: 12,
-          width: 285,
-          height: 120,
+          top: logoTop,
+          width: layout.sidebarWidth,
+          height: logoHeight,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -260,55 +303,55 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       </div>
 
       {/* Divider line */}
-      <div style={{ position: 'absolute', left: 25, top: 233, width: 236, height: 1, background: '#6277ac' }} />
+      <div style={{ position: 'absolute', left: sidebarLeftPadding, top: dividerTop, width: sidebarInnerWidth, height: 1, background: '#6277ac' }} />
 
-      <div style={{ position: 'absolute', left: 25, top: highlightTop, width: 236, height: 44, borderRadius: 10, background: '#7587b8', transition: 'top 0.25s' }} />
-      <div style={{ position: 'absolute', left: 31, top: highlightTop, width: 230, height: 44, borderRadius: 10, background: '#fff', transition: 'top 0.25s' }} />
+      <div style={{ position: 'absolute', left: sidebarLeftPadding, top: highlightTop, width: sidebarInnerWidth, height: Math.round(44 * scale), borderRadius: Math.round(10 * scale), background: '#7587b8', transition: 'top 0.25s' }} />
+      <div style={{ position: 'absolute', left: sidebarLeftPadding + Math.round(6 * scale), top: highlightTop, width: sidebarHighlightWidth, height: Math.round(44 * scale), borderRadius: Math.round(10 * scale), background: '#fff', transition: 'top 0.25s' }} />
 
       {/* AI Chat with icon */}
-      <button onClick={() => setSelected('ai')} style={{ position: 'absolute', left: 70, top: 266, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+      <button onClick={() => setSelected('ai')} style={{ position: 'absolute', left: iconLeft, top: aiTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
         <div style={{ position: 'absolute', inset: '12.5%' }}>
           <div style={{ position: 'absolute', inset: '-5.93%' }}>
             <img alt="" src={img3} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'ai' ? 'brightness(0) saturate(100%)' : 'brightness(0) saturate(100%) invert(46%) sepia(10%) saturate(842%) hue-rotate(178deg) brightness(94%) contrast(87%)' }} />
           </div>
         </div>
       </button>
-      <button onClick={() => setSelected('ai')} style={{ position: 'absolute', left: 109.47, top: 275.48, transform: 'translateY(-50%)', color: selected === 'ai' ? '#000' : '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>AI Chat</button>
+      <button onClick={() => setSelected('ai')} style={{ position: 'absolute', left: labelLeft, top: aiTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'ai' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>AI Chat</button>
 
       {/* FAQs with icon */}
-      <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: 70, top: 319, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+      <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: iconLeft, top: qaTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
         <div style={{ position: 'absolute', inset: '8.33% 8.33% 12.42% 8.33%' }}>
           <div style={{ position: 'absolute', inset: '-5.61% -5.33%' }}>
             <img alt="" src={img2} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'qa' ? 'brightness(0) saturate(100%)' : 'none' }} />
           </div>
         </div>
       </button>
-      <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: 109.47, top: 328.48, transform: 'translateY(-50%)', color: selected === 'qa' ? '#000' : '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>FAQs</button>
+      <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: labelLeft, top: qaTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'qa' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>FAQs</button>
 
       {/* Document with icon */}
-      <button onClick={() => setSelected('doc')} style={{ position: 'absolute', left: 70, top: 372, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+      <button onClick={() => setSelected('doc')} style={{ position: 'absolute', left: iconLeft, top: docTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
         <div style={{ position: 'absolute', inset: '5.78% 10.67% 8.34% 8.34%' }}>
           <div style={{ position: 'absolute', inset: '-5.18% -5.49%' }}>
             <img alt="" src={img1} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'doc' ? 'brightness(0) saturate(100%)' : 'none' }} />
           </div>
         </div>
       </button>
-      <button onClick={() => setSelected('doc')} style={{ position: 'absolute', left: 109.47, top: 381.48, transform: 'translateY(-50%)', color: selected === 'doc' ? '#000' : '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Documents</button>
+      <button onClick={() => setSelected('doc')} style={{ position: 'absolute', left: labelLeft, top: docTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'doc' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Documents</button>
 
       {/* New chat */}
-      <button onClick={handleNewChat} style={{ position: 'absolute', left: 70, top: 186.83, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+      <button onClick={handleNewChat} style={{ position: 'absolute', left: iconLeft, top: newChatTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
         <div style={{ position: 'absolute', inset: '5% 10% 5% 10%' }}>
           <div style={{ position: 'absolute', inset: '-5%' }}>
             <img alt="New chat" src={imgNewChat} style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain', opacity: 0.9 }} />
           </div>
         </div>
       </button>
-      <button onClick={handleNewChat} style={{ position: 'absolute', left: 109.47, top: 196.31, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>New Chat</button>
+      <button onClick={handleNewChat} style={{ position: 'absolute', left: labelLeft, top: newChatTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>New Chat</button>
 
       {/* Chat history */}
-      <div style={{ position: 'absolute', left: 25, top: 430, width: 236, height: 180 }}>
-        <div style={{ fontSize: 12, color: '#6277ac', marginBottom: 6 }}>Chat History</div>
-        <div style={{ height: 156, overflowY: 'auto', paddingRight: 4 }}>
+      <div style={{ position: 'absolute', left: sidebarLeftPadding, top: chatHistoryTop, width: sidebarInnerWidth, bottom: chatHistoryBottom }}>
+        <div style={{ fontSize: Math.max(10, Math.round(12 * scale)), color: '#6277ac', marginBottom: Math.round(6 * scale) }}>Chat History</div>
+        <div style={{ height: 'calc(100% - 20px)', overflowY: 'auto', paddingRight: Math.round(4 * scale) }}>
           {threads.length === 0 ? (
             <div style={{ fontSize: 12, color: '#9aa4bf' }}>ยังไม่มีประวัติ</div>
           ) : (
@@ -382,15 +425,15 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
               <>
                 {/* Welcome message (when no active thread or no messages) */}
                 {!hasMessages && (
-                  <div style={{ position: 'absolute', left: 912.76, top: 236.5, transform: 'translate(-50%, -50%)', width: 995, height: 197, textAlign: 'center' }}>
-                    <p style={{ margin: 0, color: '#757575', fontSize: 70, fontWeight: 600 }}>Hello</p>
-                    <p style={{ margin: 0, fontSize: 70, fontWeight: 600, background: 'linear-gradient(90deg, #faa538 20%, #708ac4 52%, #4960ac 81%)', WebkitBackgroundClip: 'text', color: 'transparent' }}>Welcome to Chat CPE</p>
+                  <div style={{ position: 'absolute', left: contentLeft, right: 40, top: '35%', transform: 'translateY(-50%)', textAlign: 'center', padding: '0 20px' }}>
+                    <p style={{ margin: 0, color: '#757575', fontSize: 'clamp(32px, 6vw, 70px)', fontWeight: 600, lineHeight: 1.1 }}>Hello</p>
+                    <p style={{ margin: 0, fontSize: 'clamp(32px, 6vw, 70px)', fontWeight: 600, lineHeight: 1.1, background: 'linear-gradient(90deg, #faa538 20%, #708ac4 52%, #4960ac 81%)', WebkitBackgroundClip: 'text', color: 'transparent' }}>Welcome to Chat CPE</p>
                   </div>
                 )}
 
                 {/* Chat display (when messages exist) */}
                 {hasMessages && (
-                  <div style={{ position: 'absolute', left: 371, top: 130, right: 40, height: 420, overflow: 'auto', padding: 20, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 12 }}>
+                  <div style={{ position: 'absolute', left: contentLeft, top: chatDisplayTop, right: 40, bottom: chatDisplayBottom, overflow: 'auto', padding: Math.round(20 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(12 * scale) }}>
                     {activeThread?.messages.map((msg) => (
                       <div key={msg.id} style={{ marginBottom: 12, display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
                         <div
@@ -412,8 +455,8 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
             );
           })()}
 
-          <div style={{ position: 'absolute', left: 371, top: 567.78, width: 1084.255, height: 110.852 }}>
-            <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid #4960ac', borderRadius: 15 }} />
+          <div style={{ position: 'absolute', left: contentLeft, right: 40, bottom: chatInputBottom, height: chatInputHeight }}>
+            <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid #4960ac', borderRadius: Math.round(15 * scale) }} />
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -421,47 +464,48 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
                 if (e.key === 'Enter') handleSend();
               }}
               placeholder="พิมพ์ข้อความที่นี่..."
-              style={{ position: 'absolute', left: 20, top: 26, right: 80, height: 58, border: 'none', outline: 'none', fontSize: 16, background: 'transparent' }}
+              style={{ position: 'absolute', left: Math.round(20 * scale), top: inputTop, right: inputRight, height: inputHeight, border: 'none', outline: 'none', fontSize: Math.max(12, Math.round(16 * scale)), background: 'transparent' }}
             />
             <button
               onClick={handleSend}
-              style={{ position: 'absolute', left: 1395.68 - 371, top: 625.91 - 567.78, width: 40, height: 40, borderRadius: 100, background: '#7587b8', border: 'none', cursor: 'pointer' }}
+              style={{ position: 'absolute', right: Math.round(20 * scale), top: sendBtnTop, width: sendBtnSize, height: sendBtnSize, borderRadius: sendBtnSize, background: '#7587b8', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               aria-label="Send"
-            />
-            <div style={{ position: 'absolute', left: 1401.89 - 371, top: 632.11 - 567.78, width: 27.586, height: 27.586, overflow: 'hidden', pointerEvents: 'none' }}>
-              <div style={{ position: 'absolute', inset: '20.83%' }}>
-                <div style={{ position: 'absolute', inset: '-7.77%' }}>
-                  <img alt="" src={imgSend} style={{ display: 'block', width: '100%', height: '100%' }} />
+            >
+              <div style={{ position: 'relative', width: sendIconSize, height: sendIconSize, overflow: 'hidden', pointerEvents: 'none' }}>
+                <div style={{ position: 'absolute', inset: '20.83%' }}>
+                  <div style={{ position: 'absolute', inset: '-7.77%' }}>
+                    <img alt="" src={imgSend} style={{ display: 'block', width: '100%', height: '100%' }} />
+                  </div>
                 </div>
               </div>
-            </div>
+            </button>
           </div>
         </>
       )}
       {selected === 'qa' && (
-        <div style={{ position: 'absolute', left: 320, top: 130, right: 40, maxHeight: 570, overflow: 'auto', padding: 32, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 16 }}>
+        <div style={{ position: 'absolute', left: contentLeft, top: faqTop, right: 40, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(32 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
           <FAQsAccordion faqs={faqs} />
         </div>
       )}
       {selected === 'doc' && (
-        <div style={{ position: 'absolute', left: 320, top: 100, right: 40, maxHeight: 600, overflow: 'auto', padding: 24, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 16 }}>
+        <div style={{ position: 'absolute', left: contentLeft, top: docTopContent, right: 40, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(24 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
           <DocumentsPage />
         </div>
       )}
 
       {/* Profile Section */}
-      <div style={{ position: 'absolute', left: 25, top: 625, width: 236, height: 60, background: '#d4e2f4', borderRadius: 12, display: 'flex', alignItems: 'center', padding: '8px 12px', gap: 12 }}>
+      <div style={{ position: 'absolute', left: sidebarLeftPadding, bottom: profileBottom, width: sidebarInnerWidth, height: profileHeight, background: '#d4e2f4', borderRadius: Math.round(12 * scale), display: 'flex', alignItems: 'center', padding: `${Math.round(8 * scale)}px ${Math.round(12 * scale)}px`, gap: Math.round(12 * scale) }}>
         {/* Profile Avatar */}
-        <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#6277ac', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, fontWeight: 600 }}>
+        <div style={{ width: Math.round(44 * scale), height: Math.round(44 * scale), borderRadius: '50%', background: '#6277ac', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: Math.max(12, Math.round(18 * scale)), fontWeight: 600 }}>
           {profile?.name?.[0]?.toUpperCase() || 'U'}
         </div>
         
         {/* Username and Email */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ color: '#2b2b2b', fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ color: '#2b2b2b', fontSize: Math.max(11, Math.round(14 * scale)), fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {profile?.name || 'Username'}
           </div>
-          <div style={{ color: '#6277ac', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+          <div style={{ color: '#6277ac', fontSize: Math.max(9, Math.round(11 * scale)), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: Math.round(2 * scale) }}>
             {profile?.email || 'user@example.com'}
           </div>
         </div>
@@ -470,8 +514,8 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
         <button 
           onClick={openProfile}
           style={{ 
-            width: 24, 
-            height: 24, 
+            width: Math.round(24 * scale), 
+            height: Math.round(24 * scale), 
             flexShrink: 0, 
             background: 'transparent', 
             border: 'none', 
@@ -483,7 +527,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
           }}
           aria-label="Edit profile"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6277ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width={Math.round(20 * scale)} height={Math.round(20 * scale)} viewBox="0 0 24 24" fill="none" stroke="#6277ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
           </svg>
@@ -495,23 +539,23 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
         onClick={openLogoutConfirm}
         style={{ 
           position: 'absolute', 
-          left: 25, 
-          top: 693, 
-          width: 236, 
-          height: 28,
+          left: sidebarLeftPadding, 
+          bottom: logoutBottom, 
+          width: sidebarInnerWidth, 
+          height: logoutHeight,
           background: 'transparent',
           border: 'none',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 8,
+          gap: Math.round(8 * scale),
           padding: 0
         }}
         aria-label="Logout"
       >
-        <img src={imgLogout} alt="Logout" style={{ width: 18, height: 18 }} />
-        <span style={{ color: '#6277ac', fontSize: 14, fontWeight: 500 }}>Logout</span>
+        <img src={imgLogout} alt="Logout" style={{ width: Math.round(18 * scale), height: Math.round(18 * scale) }} />
+        <span style={{ color: '#6277ac', fontSize: Math.max(11, Math.round(14 * scale)), fontWeight: 500 }}>Logout</span>
       </button>
 
       <Suspense fallback={null}>

@@ -1,7 +1,57 @@
 :root {
   color-scheme: light dark;
+  /* Responsive sizing variables */
+  --sidebar-width: 285px;
+  --modal-width: 750px;
+  --modal-height: 580px;
+  --main-padding: 100px;
+  --input-width: 550px;
 }
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
-body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, "Apple Color Emoji", "Segoe UI Emoji"; }
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, "Apple Color Emoji", "Segoe UI Emoji"; overflow-x: hidden; }
+
+/* Responsive design breakpoints */
+/* Desktop Large (1440px+) */
+@media (min-width: 1440px) {
+  :root {
+    --modal-width: 850px;
+    --modal-height: 650px;
+    --input-width: 600px;
+  }
+}
+
+/* Laptop 13"-15" (1024px - 1199px) */
+@media (min-width: 1024px) and (max-width: 1199px) {
+  :root {
+    --modal-width: 700px;
+    --modal-height: 550px;
+    --input-width: 500px;
+    --main-padding: 80px;
+    --sidebar-width: 240px;
+  }
+  body { font-size: 14px; }
+}
+
+/* Tablet (768px - 1023px) */
+@media (max-width: 1023px) {
+  :root {
+    --modal-width: 90vw;
+    --input-width: calc(90vw - 80px);
+    --main-padding: 20px;
+    --sidebar-width: 200px;
+  }
+  body { font-size: 13px; }
+}
+
+/* Mobile (max 767px) */
+@media (max-width: 767px) {
+  :root {
+    --modal-width: 95vw;
+    --input-width: calc(95vw - 40px);
+    --main-padding: 15px;
+    --sidebar-width: 100%;
+  }
+  body { font-size: 12px; }
+}

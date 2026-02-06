@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, Suspense, useEffect } from 'reac
 import { faqAPI, chatAPI } from '../services/api';
 import FAQsAccordion from './FAQsAccordion';
 import DocumentsPage from './DocumentsPage';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 const SignInModal = React.lazy(() => import('./SignInModal'));
 const SignUpModal = React.lazy(() => import('./SignUpModal'));
 
@@ -72,6 +73,7 @@ function SignInButton({ style, onClick }: { style?: React.CSSProperties; onClick
 }
 
 export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
+  const layout = useResponsiveLayout();
   const [modal, setModal] = useState<'none' | 'signin' | 'signup'>('none');
   const [selected, setSelected] = useState<'ai' | 'qa' | 'doc'>('ai');
   const [faqs, setFaqs] = useState<any[]>([]);
@@ -94,7 +96,6 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
 
   const iconPositions: Record<'ai' | 'qa' | 'doc', number> = { ai: 266, qa: 319, doc: 372 };
   const highlightTop = useMemo(() => iconPositions[selected] - 13, [selected]);
-
   const openSignIn = useCallback(() => setModal('signin'), []);
   const openSignUp = useCallback(() => setModal('signup'), []);
   const closeModal = useCallback(() => setModal('none'), []);
@@ -146,12 +147,14 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
       style={{
         position: 'relative',
         width: '100%',
-        minHeight: 730,
+        height: '100vh',
+        minHeight: '100vh',
+        overflow: 'hidden',
         background: 'linear-gradient(to bottom, #f0f6fe, #ffffff)'
       }}
     >
       {/* Left sidebar */}
-      <div style={{ position: 'absolute', left: 0, top: 0, width: 285, height: 730, background: '#e4eef8' }} />
+      <div style={{ position: 'absolute', left: 0, top: 0, width: 285, height: '100vh', background: '#e4eef8' }} />
 
       {/* Logo */}
       <div
@@ -221,15 +224,15 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
 
       {/* Welcome text (only visible on AI when no messages) */}
       {selected === 'ai' && messages.length === 0 && (
-        <div style={{ position: 'absolute', left: 912.76, top: 236.5, transform: 'translate(-50%, -50%)', width: 995, height: 197, textAlign: 'center' }}>
-          <p style={{ margin: 0, color: '#757575', fontSize: 70, fontWeight: 600 }}>Hello</p>
-          <p style={{ margin: 0, fontSize: 70, fontWeight: 600, background: 'linear-gradient(90deg, #faa538 20%, #708ac4 52%, #4960ac 81%)', WebkitBackgroundClip: 'text', color: 'transparent' }}>Welcome to Chat CPE</p>
+        <div style={{ position: 'absolute', left: 320, right: 40, top: '35%', transform: 'translateY(-50%)', textAlign: 'center', padding: '0 20px' }}>
+          <p style={{ margin: 0, color: '#757575', fontSize: 'clamp(32px, 6vw, 70px)', fontWeight: 600, lineHeight: 1.1 }}>Hello</p>
+          <p style={{ margin: 0, fontSize: 'clamp(32px, 6vw, 70px)', fontWeight: 600, lineHeight: 1.1, background: 'linear-gradient(90deg, #faa538 20%, #708ac4 52%, #4960ac 81%)', WebkitBackgroundClip: 'text', color: 'transparent' }}>Welcome to Chat CPE</p>
         </div>
       )}
 
       {/* Chat display (only visible when messages exist) */}
       {selected === 'ai' && messages.length > 0 && (
-        <div style={{ position: 'absolute', left: 371, top: 180, right: 40, height: 370, overflow: 'auto', padding: 20, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 12 }}>
+        <div style={{ position: 'absolute', left: 320, top: 120, right: 40, bottom: 150, overflow: 'auto', padding: 20, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 12 }}>
           {messages.map((msg) => (
             <div key={msg.id} style={{ marginBottom: 12, display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
               <div
@@ -250,7 +253,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
 
       {/* Search bar and send button (only on AI) */}
       {selected === 'ai' && (
-        <div style={{ position: 'absolute', left: 371, top: 567.78, width: 1084.255, height: 110.852 }}>
+        <div style={{ position: 'absolute', left: 320, right: 40, bottom: 30, height: 96 }}>
           <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid #4960ac', borderRadius: 15 }} />
           <input
             value={input}
@@ -263,10 +266,10 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
           />
           <button
             onClick={handleSend}
-            style={{ position: 'absolute', left: 1395.68 - 371, top: 625.91 - 567.78, width: 40, height: 40, borderRadius: 100, background: '#7587b8', border: 'none', cursor: 'pointer' }}
+            style={{ position: 'absolute', right: 20, top: 28, width: 40, height: 40, borderRadius: 100, background: '#7587b8', border: 'none', cursor: 'pointer' }}
             aria-label="Send"
           />
-          <div style={{ position: 'absolute', left: 1401.89 - 371, top: 632.11 - 567.78, width: 27.586, height: 27.586, overflow: 'hidden', pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', right: 26, top: 34, width: 27.586, height: 27.586, overflow: 'hidden', pointerEvents: 'none' }}>
             <div style={{ position: 'absolute', inset: '20.83%' }}>
               <div style={{ position: 'absolute', inset: '-7.77%' }}>
                 <img alt="" src={img} style={{ display: 'block', width: '100%', height: '100%' }} />
@@ -278,13 +281,13 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
 
       {/* Placeholder Q&A content */}
       {selected === 'qa' && (
-        <div style={{ position: 'absolute', left: 371, top: 180, right: 40, maxHeight: 500, overflow: 'auto', padding: 24, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 12 }}>
+        <div style={{ position: 'absolute', left: 320, top: 120, right: 40, bottom: 30, overflow: 'auto', padding: 24, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 12 }}>
           <FAQsAccordion faqs={faqs} />
         </div>
       )}
 
       {selected === 'doc' && (
-        <div style={{ position: 'absolute', left: 371, top: 130, right: 40, maxHeight: 550, overflow: 'auto', padding: 24, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 16 }}>
+        <div style={{ position: 'absolute', left: 320, top: 100, right: 40, bottom: 30, overflow: 'auto', padding: 24, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 16 }}>
           <DocumentsPage />
         </div>
       )}
@@ -293,7 +296,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
       {/* <LogOut style={{ position: 'absolute', left: 341, top: 499, width: 18, height: 18, overflow: 'hidden' }} /> */}
 
       {/* Sign In trigger */}
-      <SignInButton onClick={openSignIn} style={{ position: 'absolute', left: 25, top: 635 }} />
+      <SignInButton onClick={openSignIn} style={{ position: 'absolute', left: 25, bottom: 30 }} />
 
       <Suspense fallback={null}>
         {modal === 'signin' && (

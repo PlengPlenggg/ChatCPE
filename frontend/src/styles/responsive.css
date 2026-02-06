@@ -1,0 +1,205 @@
+/* Responsive Design Styles */
+/* Main breakpoints for Desktop, Tablet, Mobile */
+
+:root {
+  /* Main viewport width for desktop (default) */
+  --content-width: 100%;
+  --modal-width: 750px;
+  --modal-height: 580px;
+  --sidebar-width: 285px;
+  --main-padding: 100px;
+  --input-width: 550px;
+}
+
+/* ============================================ */
+/* DESKTOP - Large screens (1440px and above) */
+/* ============================================ */
+@media (min-width: 1440px) {
+  :root {
+    --modal-width: 850px;
+    --modal-height: 650px;
+    --input-width: 600px;
+  }
+}
+
+/* ============================================ */
+/* DESKTOP - Standard (1200px to 1439px) */
+/* ============================================ */
+@media (min-width: 1200px) and (max-width: 1439px) {
+  :root {
+    --modal-width: 750px;
+    --modal-height: 580px;
+    --input-width: 550px;
+  }
+}
+
+/* ============================================ */
+/* LAPTOP - 13" to 15" screens (1024px to 1199px) */
+/* ============================================ */
+@media (min-width: 1024px) and (max-width: 1199px) {
+  :root {
+    --modal-width: 700px;
+    --modal-height: 550px;
+    --input-width: 500px;
+    --main-padding: 80px;
+  }
+  
+  body {
+    font-size: 14px;
+  }
+}
+
+/* ============================================ */
+/* TABLET - iPad size (768px to 1023px) */
+/* ============================================ */
+@media (max-width: 1023px) {
+  :root {
+    --modal-width: 95vw;
+    --modal-height: auto;
+    --modal-max-width: 600px;
+    --input-width: calc(95vw - 100px);
+    --main-padding: 20px;
+    --sidebar-width: 100%;
+  }
+  
+  body {
+    font-size: 13px;
+  }
+  
+  /* Adjust modals for tablet */
+  [role="dialog"] {
+    padding: 20px;
+  }
+  
+  [role="dialog"] > div {
+    width: var(--modal-width) !important;
+    max-width: var(--modal-max-width, 600px) !important;
+    height: auto !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* ============================================ */
+/* MOBILE - Small screens (max 767px) */
+/* ============================================ */
+@media (max-width: 767px) {
+  :root {
+    --modal-width: 95vw;
+    --input-width: calc(95vw - 50px);
+    --main-padding: 15px;
+  }
+  
+  body {
+    font-size: 12px;
+  }
+  
+  /* Full-screen modals on mobile */
+  [role="dialog"] {
+    padding: 10px;
+  }
+  
+  [role="dialog"] > div {
+    width: var(--modal-width) !important;
+    height: 90vh !important;
+    max-height: 90vh !important;
+    border-radius: 15px !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* ============================================ */
+/* General Responsive Classes */
+/* ============================================ */
+
+/* Container that scales with viewport */
+.responsive-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 var(--main-padding);
+}
+
+/* Flex layout that wraps on small screens */
+.flex-responsive {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .flex-responsive {
+    flex-direction: column;
+  }
+}
+
+/* Text scaling */
+.text-responsive {
+  font-size: clamp(12px, 2vw, 20px);
+}
+
+/* Button responsive sizing */
+.btn-responsive {
+  padding: clamp(8px, 2vw, 16px) clamp(16px, 4vw, 32px);
+  font-size: clamp(12px, 1.5vw, 16px);
+}
+
+/* Grid layout */
+.grid-responsive {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .grid-responsive {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================ */
+/* Scrollbar styling (Desktop only) */
+/* ============================================ */
+@media (min-width: 1024px) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #555;
+  }
+}
+
+/* ============================================ */
+/* Prevent zoom on mobile input focus */
+/* ============================================ */
+@media (max-width: 1023px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+/* ============================================ */
+/* Print styles */
+/* ============================================ */
+@media print {
+  body {
+    background: white;
+  }
+  
+  [role="dialog"] {
+    display: none;
+  }
+}

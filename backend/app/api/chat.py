@@ -298,3 +298,32 @@ async def delete_chat_history(
         db.rollback()
         logger.error(f"Error deleting chat history: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/threads/{thread_id}")
+async def delete_chat_thread(
+    thread_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    ลบประวัติการสนทนาเฉพาะ thread_id ของผู้ใช้
+    """
+    try:
+        chats = (
+            db.query(Chat)
+            .filter(Chat.user_id == current_user.id, Chat.thread_id == thread_id)
+            .all()
+        )
+        if not chats:
+            return {"message": "Thread not found"}
+
+        chat_ids = [c.id for c in chats]
+        db.query(Answer).filter(Answer.chat_id.in_(chat_ids)).delete(synchronize_session=False)
+        db.query(Chat).filter(Chat.id.in_(chat_ids)).delete(synchronize_session=False)
+        db.commit()
+        return {"message": "Thread deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting chat thread: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -52,7 +52,7 @@ export const authAPI = {
     });
   },
   register(name: string, email: string, password: string, confirm_password: string) {
-    return request<{ access_token: string; token_type: string; user_id: number }>('/auth/register', {
+    return request<{ message: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ name, email, password, confirm_password })
     });
@@ -94,6 +94,11 @@ export const chatAPI = {
   getHistory() {
     return request<any[]>("/chat/history", {
       method: 'GET'
+    });
+  },
+  deleteThread(threadId: string) {
+    return request<{ message: string }>(`/chat/threads/${threadId}`, {
+      method: 'DELETE'
     });
   },
   deleteHistory() {
