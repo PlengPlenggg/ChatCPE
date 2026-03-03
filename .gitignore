@@ -3,3 +3,23 @@ dist
 .DS_Store
 *.log
 .husky/_
+
+# Secrets
+.env
+backend/.env
+frontend/.env
+*.env
+*.env.*
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Upload/runtime artifacts
+backend/uploaded_files/
+
+# Local binaries and archives
+*.exe
+*.zip
