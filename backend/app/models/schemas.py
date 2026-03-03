@@ -40,3 +40,14 @@ class FileResponse(BaseModel):
 class LLMResponse(BaseModel):
     response: str
     timestamp: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+class ResetPasswordResponse(BaseModel):
+    message: str
+    success: bool

@@ -7,6 +7,8 @@ import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 const ProfileModal = React.lazy(() => import('./ProfileModal'));
 const EditProfileModal = React.lazy(() => import('./EditProfileModal'));
 const LogoutConfirmModal = React.lazy(() => import('./LogoutConfirmModal'));
+const AdminDashboard = React.lazy(() => import('./AdminDashboard'));
+const ManageDocumentPage = React.lazy(() => import('./ManageDocumentPage'));
 
 // Image paths from public/images folder
 const imgLogoCpe = "/images/LogoCPE.png";
@@ -42,13 +44,15 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   const aiTop = Math.round(266 * scale);
   const qaTop = Math.round(319 * scale);
   const docTop = Math.round(372 * scale);
-  const chatHistoryTop = Math.round(430 * scale);
+  const dashboardTop = Math.round(319 * scale);
+  const adminTop = Math.round(372 * scale);
+  const manageDocTop = Math.round(425 * scale);
   const sidebarIconSize = Math.round(18 * scale);
   const sidebarLabelFont = Math.max(12, Math.round(16 * scale));
   const sidebarLabelOffset = Math.round(9.5 * scale);
 
   const chatDisplayTop = Math.round(120 * scale);
-  const faqTop = chatDisplayTop;
+  const faqTop = Math.round(80 * scale);
   const docTopContent = Math.round(100 * scale);
 
   const chatInputHeight = Math.round(96 * scale);
@@ -57,6 +61,8 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   const inputTop = Math.round(26 * scale);
   const inputHeight = Math.round(58 * scale);
   const inputRight = Math.round(80 * scale);
+  const inputFontSize = Math.max(12, Math.round(16 * scale));
+  const inputPadY = Math.max(0, Math.round((inputHeight - inputFontSize) / 2) - 1);
   const sendBtnSize = Math.round(40 * scale);
   const sendBtnTop = Math.round((chatInputHeight - sendBtnSize) / 2);
   const sendIconSize = Math.round(28 * scale);
@@ -66,23 +72,49 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   const logoutBottom = Math.round(30 * scale);
   const logoutHeight = Math.round(28 * scale);
   const chatHistoryBottom = profileBottom + profileHeight + Math.round(20 * scale);
-  const [selected, setSelected] = useState<'ai' | 'qa' | 'doc'>('ai');
+  const [selected, setSelected] = useState<'ai' | 'qa' | 'doc' | 'dashboard' | 'admin' | 'manage-doc'>('ai');
   const [profile, setProfile] = useState<any>(null);
   const [faqs, setFaqs] = useState<any[]>([]);
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingDots, setTypingDots] = useState('');
   const nextIdRef = useRef(1);
-  const iconPositions: Record<'ai' | 'qa' | 'doc', number> = { ai: aiTop, qa: qaTop, doc: docTop };
-  const highlightTop = useMemo(() => iconPositions[selected] - Math.round(13 * scale), [iconPositions, selected, scale]);
+  const isAdmin = (profile?.role || '').toLowerCase() === 'admin';
+  const chatHistoryTop = isAdmin ? Math.round(531 * scale) : Math.round(430 * scale);
+  const iconPositions: Record<'ai' | 'qa' | 'doc' | 'dashboard' | 'admin' | 'manage-doc', number> = {
+    ai: aiTop,
+    qa: qaTop,
+    doc: docTop,
+    dashboard: dashboardTop,
+    admin: adminTop,
+    'manage-doc': manageDocTop
+  };
+  const highlightTop = useMemo(() => {
+    if (selected === 'admin') {
+      return isAdmin ? adminTop - Math.round(13 * scale) : aiTop - Math.round(13 * scale);
+    }
+    return iconPositions[selected] - Math.round(13 * scale);
+  }, [iconPositions, selected, scale, isAdmin]);
+
+  useEffect(() => {
+    if (isAdmin && (selected === 'qa' || selected === 'doc')) {
+      setSelected('ai');
+    }
+  }, [isAdmin, selected]);
 
   const [profileView, setProfileView] = useState<'none' | 'profile' | 'edit'>('none');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const chatDisplayRef = useRef<HTMLDivElement>(null);
 
   const loadProfileAndFAQ = useCallback(async () => {
     try {
       const profileRes = await authAPI.getProfile();
+      console.log('Profile API response:', profileRes.data);
+      console.log('Profile role:', profileRes.data?.role);
       setProfile(profileRes.data);
+      console.log('Profile set to state');
       const faqRes = await faqAPI.getAllFAQs();
       setFaqs(faqRes.data || []);
     } catch (err) {
@@ -93,6 +125,31 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   useEffect(() => {
     loadProfileAndFAQ();
   }, [loadProfileAndFAQ]);
+
+  // Log profile changes
+  useEffect(() => {
+    console.log('Profile state updated:', profile);
+    console.log('Is admin?', isAdmin);
+  }, [profile, isAdmin]);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (chatDisplayRef.current) {
+      chatDisplayRef.current.scrollTop = chatDisplayRef.current.scrollHeight;
+    }
+  }, [threads, activeThreadId, isTyping]);
+
+  // Animate typing dots
+  useEffect(() => {
+    if (!isTyping) {
+      setTypingDots('');
+      return;
+    }
+    const interval = setInterval(() => {
+      setTypingDots((prev) => (prev.length >= 3 ? '' : prev + '•'));
+    }, 400);
+    return () => clearInterval(interval);
+  }, [isTyping]);
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -198,6 +255,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
     const startId = nextIdRef.current;
     nextIdRef.current += 2;
     const now = Date.now();
+    const userMsg: ChatMessage = { id: startId, role: 'user', text: trimmed, createdAt: now };
     
     // ถ้าไม่มี active thread ให้สร้างใหม่
     let currentThreadId = activeThreadId;
@@ -214,8 +272,41 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       setActiveThreadId(currentThreadId);
     }
 
+    // แสดงข้อความผู้ใช้ทันที
+    setThreads((prev) => {
+      const existing = prev.find((t) => t.id === currentThreadId);
+
+      if (!existing) {
+        const title = trimmed.length > 32 ? `${trimmed.slice(0, 32)}...` : trimmed;
+        return [
+          {
+            id: currentThreadId!,
+            title,
+            messages: [userMsg],
+            createdAt: now,
+            updatedAt: now
+          },
+          ...prev
+        ];
+      }
+
+      const updatedMessages = [...existing.messages, userMsg];
+      const updatedThread: ChatThread = {
+        ...existing,
+        title: existing.title === 'New Chat' ? (trimmed.length > 32 ? `${trimmed.slice(0, 32)}...` : trimmed) : existing.title,
+        messages: updatedMessages,
+        updatedAt: now
+      };
+      const others = prev.filter((t) => t.id !== existing.id);
+      return [updatedThread, ...others];
+    });
+
+    setInput('');
+    await Promise.resolve();
+
     let answerText = '...';
     let realThreadId = currentThreadId;
+    setIsTyping(true);
     
     try {
       // ส่ง message พร้อม thread_id
@@ -228,11 +319,12 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
     } catch (err) {
       console.error('Failed to send message:', err);
       answerText = 'เกิดข้อผิดพลาดในการส่งข้อความ';
+    } finally {
+      setIsTyping(false);
     }
 
     setThreads((prev) => {
       const existing = prev.find((t) => t.id === currentThreadId);
-      const userMsg: ChatMessage = { id: startId, role: 'user', text: trimmed, createdAt: now };
       const botMsg: ChatMessage = { id: startId + 1, role: 'bot', text: answerText, createdAt: now + 1 };
       
       if (!existing) {
@@ -249,7 +341,10 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
         ];
       }
       
-      const updatedMessages = [...existing.messages, userMsg, botMsg];
+      const hasUserMsg = existing.messages.some((msg) => msg.id === startId);
+      const updatedMessages = hasUserMsg
+        ? [...existing.messages, botMsg]
+        : [...existing.messages, userMsg, botMsg];
       const updatedThread: ChatThread = {
         ...existing,
         id: realThreadId,
@@ -265,8 +360,6 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
     if (realThreadId !== currentThreadId) {
       setActiveThreadId(realThreadId);
     }
-    
-    setInput('');
   }, [input, activeThreadId]);
   const confirmLogout = useCallback(async () => {
     setShowLogoutConfirm(false);
@@ -312,34 +405,87 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       <button onClick={() => setSelected('ai')} style={{ position: 'absolute', left: iconLeft, top: aiTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
         <div style={{ position: 'absolute', inset: '12.5%' }}>
           <div style={{ position: 'absolute', inset: '-5.93%' }}>
-            <img alt="" src={img3} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'ai' ? 'brightness(0) saturate(100%)' : 'brightness(0) saturate(100%) invert(46%) sepia(10%) saturate(842%) hue-rotate(178deg) brightness(94%) contrast(87%)' }} />
+            <img alt="" src={img2} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'ai' ? 'brightness(0) saturate(100%)' : 'brightness(0) saturate(100%) invert(46%) sepia(10%) saturate(842%) hue-rotate(178deg) brightness(94%) contrast(87%)' }} />
           </div>
         </div>
       </button>
       <button onClick={() => setSelected('ai')} style={{ position: 'absolute', left: labelLeft, top: aiTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'ai' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>AI Chat</button>
 
-      {/* FAQs with icon */}
-      <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: iconLeft, top: qaTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
-        <div style={{ position: 'absolute', inset: '8.33% 8.33% 12.42% 8.33%' }}>
-          <div style={{ position: 'absolute', inset: '-5.61% -5.33%' }}>
-            <img alt="" src={img2} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'qa' ? 'brightness(0) saturate(100%)' : 'none' }} />
-          </div>
-        </div>
-      </button>
-      <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: labelLeft, top: qaTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'qa' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>FAQs</button>
+      {!isAdmin && (
+        <>
+          {/* FAQs with icon */}
+          <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: iconLeft, top: qaTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+            <div style={{ position: 'absolute', inset: '8.33% 8.33% 12.42% 8.33%' }}>
+              <div style={{ position: 'absolute', inset: '-5.61% -5.33%' }}>
+                <img alt="" src={img3} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'qa' ? 'brightness(0) saturate(100%)' : 'none' }} />
+              </div>
+            </div>
+          </button>
+          <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: labelLeft, top: qaTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'qa' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>FAQs</button>
 
-      {/* Document with icon */}
-      <button onClick={() => setSelected('doc')} style={{ position: 'absolute', left: iconLeft, top: docTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
-        <div style={{ position: 'absolute', inset: '5.78% 10.67% 8.34% 8.34%' }}>
-          <div style={{ position: 'absolute', inset: '-5.18% -5.49%' }}>
-            <img alt="" src={img1} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'doc' ? 'brightness(0) saturate(100%)' : 'none' }} />
-          </div>
+          {/* Document with icon */}
+          <button onClick={() => setSelected('doc')} style={{ position: 'absolute', left: iconLeft, top: docTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+            <div style={{ position: 'absolute', inset: '5.78% 10.67% 8.34% 8.34%' }}>
+              <div style={{ position: 'absolute', inset: '-5.18% -5.49%' }}>
+                <img alt="" src={img1} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'doc' ? 'brightness(0) saturate(100%)' : 'none' }} />
+              </div>
+            </div>
+          </button>
+          <button onClick={() => setSelected('doc')} style={{ position: 'absolute', left: labelLeft, top: docTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'doc' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Documents</button>
+        </>
+      )}
+
+      {/* User Information - only for admin */}
+      {isAdmin && (
+        <>
+          <button onClick={() => setSelected('dashboard')} style={{ position: 'absolute', left: iconLeft, top: dashboardTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+            <div style={{ position: 'absolute', inset: '8.33% 8.33% 12.42% 8.33%' }}>
+              <div style={{ position: 'absolute', inset: '-5.61% -5.33%' }}>
+                <img alt="" src={img3} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'dashboard' ? 'brightness(0) saturate(100%)' : 'none' }} />
+              </div>
+            </div>
+          </button>
+          <button onClick={() => setSelected('dashboard')} style={{ position: 'absolute', left: labelLeft, top: dashboardTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'dashboard' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Dashboard</button>
+
+          <button onClick={() => setSelected('admin')} style={{ position: 'absolute', left: iconLeft, top: adminTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+            <div style={{ position: 'absolute', inset: '12.5%' }}>
+              <div style={{ position: 'absolute', inset: '-5.93%' }}>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke={selected === 'admin' ? '#000' : '#6277ac'}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ display: 'block', width: '100%', height: '100%' }}
+                >
+                  <path d="M20 21a8 8 0 0 0-16 0" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </div>
+            </div>
+          </button>
+          <button onClick={() => setSelected('admin')} style={{ position: 'absolute', left: labelLeft, top: adminTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'admin' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>User Information</button>
+
+          <button onClick={() => setSelected('manage-doc')} style={{ position: 'absolute', left: iconLeft, top: manageDocTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+            <div style={{ position: 'absolute', inset: '5.78% 10.67% 8.34% 8.34%' }}>
+              <div style={{ position: 'absolute', inset: '-5.18% -5.49%' }}>
+                <img alt="" src={img1} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'manage-doc' ? 'brightness(0) saturate(100%)' : 'none' }} />
+              </div>
+            </div>
+          </button>
+          <button onClick={() => setSelected('manage-doc')} style={{ position: 'absolute', left: labelLeft, top: manageDocTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'manage-doc' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Manage Document</button>
+        </>
+      )}
+      {/* Debug: Show profile role */}
+      {(import.meta as any).env.MODE === 'development' && (
+        <div style={{ position: 'absolute', left: 20, top: 20, fontSize: 12, color: '#f00', background: '#fff', padding: '4px 8px', zIndex: 9999 }}>
+          Debug: profile.role = {JSON.stringify(profile?.role)} (admin={String(profile?.role === 'admin')})
         </div>
-      </button>
-      <button onClick={() => setSelected('doc')} style={{ position: 'absolute', left: labelLeft, top: docTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'doc' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Documents</button>
+      )}
 
       {/* New chat */}
-      <button onClick={handleNewChat} style={{ position: 'absolute', left: iconLeft, top: newChatTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+      <button onClick={handleNewChat} style={{ position: 'absolute', left: iconLeft - Math.round(3 * scale), top: newChatTop - Math.round(3 * scale), width: Math.round(24 * scale), height: Math.round(24 * scale), overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
         <div style={{ position: 'absolute', inset: '5% 10% 5% 10%' }}>
           <div style={{ position: 'absolute', inset: '-5%' }}>
             <img alt="New chat" src={imgNewChat} style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain', opacity: 0.9 }} />
@@ -433,7 +579,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
 
                 {/* Chat display (when messages exist) */}
                 {hasMessages && (
-                  <div style={{ position: 'absolute', left: contentLeft, top: chatDisplayTop, right: 40, bottom: chatDisplayBottom, overflow: 'auto', padding: Math.round(20 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(12 * scale) }}>
+                  <div ref={chatDisplayRef} style={{ position: 'absolute', left: contentLeft, top: chatDisplayTop, right: 40, bottom: chatDisplayBottom, overflow: 'auto', padding: Math.round(20 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(12 * scale) }}>
                     {activeThread?.messages.map((msg) => (
                       <div key={msg.id} style={{ marginBottom: 12, display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
                         <div
@@ -442,13 +588,33 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
                             padding: '10px 12px',
                             borderRadius: 12,
                             background: msg.role === 'user' ? '#e6efff' : '#f4f6fb',
-                            color: '#2b2b2b'
+                            color: '#2b2b2b',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word'
                           }}
                         >
                           {msg.text}
                         </div>
                       </div>
                     ))}
+                    {isTyping && (
+                      <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'flex-start' }}>
+                        <div
+                          style={{
+                            maxWidth: '60%',
+                            padding: '10px 12px',
+                            borderRadius: 12,
+                            background: '#f4f6fb',
+                            color: '#2b2b2b',
+                            minHeight: '20px',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <span style={{ fontSize: 14, fontWeight: 500 }}>กำลังพิมพ์{typingDots}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -458,17 +624,19 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
           <div style={{ position: 'absolute', left: contentLeft, right: 40, bottom: chatInputBottom, height: chatInputHeight }}>
             <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid #4960ac', borderRadius: Math.round(15 * scale) }} />
             <input
+              disabled={isTyping}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSend();
+                if (e.key === 'Enter' && !isTyping) handleSend();
               }}
               placeholder="พิมพ์ข้อความที่นี่..."
-              style={{ position: 'absolute', left: Math.round(20 * scale), top: inputTop, right: inputRight, height: inputHeight, border: 'none', outline: 'none', fontSize: Math.max(12, Math.round(16 * scale)), background: 'transparent' }}
+              style={{ position: 'absolute', left: Math.round(20 * scale), top: inputTop, right: inputRight, height: inputHeight, border: 'none', outline: 'none', fontSize: inputFontSize, lineHeight: 'normal', paddingTop: inputPadY, paddingBottom: inputPadY, background: 'transparent', opacity: isTyping ? 0.6 : 1, cursor: isTyping ? 'not-allowed' : 'text' }}
             />
             <button
+              disabled={isTyping}
               onClick={handleSend}
-              style={{ position: 'absolute', right: Math.round(20 * scale), top: sendBtnTop, width: sendBtnSize, height: sendBtnSize, borderRadius: sendBtnSize, background: '#7587b8', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ position: 'absolute', right: Math.round(20 * scale), top: sendBtnTop, width: sendBtnSize, height: sendBtnSize, borderRadius: sendBtnSize, background: '#7587b8', border: 'none', cursor: isTyping ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: isTyping ? 0.6 : 1 }}
               aria-label="Send"
             >
               <div style={{ position: 'relative', width: sendIconSize, height: sendIconSize, overflow: 'hidden', pointerEvents: 'none' }}>
@@ -483,13 +651,34 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
         </>
       )}
       {selected === 'qa' && (
-        <div style={{ position: 'absolute', left: contentLeft, top: faqTop, right: 40, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(32 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
+        <div style={{ position: 'absolute', left: contentLeft, top: faqTop, right: 40, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(16 * scale) }}>
           <FAQsAccordion faqs={faqs} />
         </div>
       )}
       {selected === 'doc' && (
         <div style={{ position: 'absolute', left: contentLeft, top: docTopContent, right: 40, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(24 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
           <DocumentsPage />
+        </div>
+      )}
+      {selected === 'admin' && isAdmin && (
+        <div style={{ position: 'absolute', left: contentLeft, top: docTopContent, right: 40, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(24 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
+          <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px' }}>Loading...</div>}>
+            <AdminDashboard view="information" />
+          </Suspense>
+        </div>
+      )}
+      {selected === 'dashboard' && isAdmin && (
+        <div style={{ position: 'absolute', left: contentLeft, top: docTopContent, right: 40, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(24 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
+          <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px' }}>Loading...</div>}>
+            <AdminDashboard view="dashboard" />
+          </Suspense>
+        </div>
+      )}
+      {selected === 'manage-doc' && isAdmin && (
+        <div style={{ position: 'absolute', left: contentLeft, top: docTopContent, right: 40, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(24 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
+          <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px' }}>Loading...</div>}>
+            <ManageDocumentPage />
+          </Suspense>
         </div>
       )}
 

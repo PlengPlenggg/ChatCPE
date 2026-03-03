@@ -17,8 +17,20 @@ services:
       - "8000:8000"
     depends_on:
       - db
+    restart: unless-stopped
     environment:
       - DATABASE_URL=postgresql://tesrtuser:testpassword@db:5432/chatcpe_db
+      - APP_BASE_URL=http://10.35.29.103:8080
+      - BACKEND_BASE_URL=http://10.35.29.103:8000
+      - RAG_SERVICE_URL=http://10.35.29.103:8001
+      - RAG_REQUEST_TIMEOUT_SECONDS=10
+      - RAG_MAX_RETRIES=2
+      - RAG_RETRY_DELAY_SECONDS=0.7
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-noreply@chatcpe.com}
     volumes:
       - ./backend:/app
 

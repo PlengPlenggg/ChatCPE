@@ -35,7 +35,7 @@ function PrimaryButton({ onClick, disabled }: { onClick: () => void; disabled?: 
       style={{
         position: 'absolute',
         left: 100,
-        top: 485,
+        top: 520,
         width: 550,
         height: 44,
         borderRadius: 40,
@@ -98,7 +98,7 @@ function SignUpModal({ open, onBackToSignIn }: Props) {
           top: '50%',
           transform: 'translate(-50%, -50%)',
           width: 750,
-          height: 580,
+          height: 620,
           borderRadius: 20,
           overflow: 'hidden',
           background: 'linear-gradient(to bottom, #f0f6fe, #ffffff)',
@@ -200,13 +200,13 @@ function SignUpModal({ open, onBackToSignIn }: Props) {
         </button>
 
         {error && (
-          <div style={{ position: 'absolute', left: 100, top: 467, color: '#d32f2f', fontSize: 12, fontFamily: 'Inter, system-ui, sans-serif' }}>
+          <div style={{ position: 'absolute', left: 100, top: 470, right: 100, color: '#d32f2f', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif', lineHeight: 1.5, textAlign: 'center' }}>
             {error}
           </div>
         )}
 
         {successMessage && (
-          <div style={{ position: 'absolute', left: 100, top: 467, color: '#2e7d32', fontSize: 12, fontFamily: 'Inter, system-ui, sans-serif' }}>
+          <div style={{ position: 'absolute', left: 100, top: 470, right: 100, color: '#2e7d32', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif', lineHeight: 1.5, textAlign: 'center' }}>
             {successMessage}
           </div>
         )}
@@ -219,7 +219,7 @@ function SignUpModal({ open, onBackToSignIn }: Props) {
             style={{
               position: 'absolute',
               left: 374.5,
-              top: 525,
+              top: 575,
               transform: 'translate(-50%, -50%)',
               width: 185,
               height: 22,
@@ -228,7 +228,7 @@ function SignUpModal({ open, onBackToSignIn }: Props) {
               color: '#6277ac',
               cursor: 'pointer',
               fontFamily: 'Inter, system-ui, sans-serif',
-              fontSize: 10
+              fontSize: 12
             }}
           >
             Back to Sign in

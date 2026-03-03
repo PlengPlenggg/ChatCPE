@@ -6,6 +6,7 @@ import os
 from app.api import auth, chat, files, faq, documents
 from app.config import DATABASE_URL, UPLOAD_DIR
 from app.models.database import Base, engine
+from app.api.faq import seed_sample_faqs
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,6 +18,10 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     logger.info(f"Database tables created successfully!")
+    
+    # Create sample FAQs if not already exist
+    seed_sample_faqs()
+    
     yield
     # Shutdown
     logger.info("Application shutting down...")

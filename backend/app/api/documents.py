@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 import requests
 from bs4 import BeautifulSoup
 import logging
+from urllib.parse import urljoin
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -18,11 +19,11 @@ class FormItem(BaseModel):
 @router.get("/forms", response_model=List[FormItem])
 async def get_forms():
     try:
-        response = requests.get(FORMS_URL, timeout=30)
+        response = requests.get(FORMS_URL, timeout=10)
         response.raise_for_status()
     except requests.RequestException as exc:
-        logger.error(f"Failed to fetch forms page: {exc}")
-        raise HTTPException(status_code=503, detail="Failed to fetch forms page")
+        logger.warning(f"Failed to fetch forms page: {exc}")
+        return []
 
     soup = BeautifulSoup(response.text, "html.parser")
     table = soup.find("table")
@@ -40,9 +41,11 @@ async def get_forms():
         links = cols[1].find_all("a", href=True)
         for link in links:
             title = link.get_text("\n", strip=True)
-            url = link.get("href", "").strip()
-            if not url:
+            href = link.get("href", "").strip()
+            if not href:
                 continue
-            items.append(FormItem(code=code_text, title=title, url=url))
+            absolute_url = urljoin(FORMS_URL, href)
+            items.append(FormItem(code=code_text, title=title, url=absolute_url))
 
     return items
+

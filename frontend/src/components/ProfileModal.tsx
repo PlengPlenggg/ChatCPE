@@ -87,6 +87,7 @@ function ProfileModal({ onClose, onEditProfile }: ProfileModalProps) {
         >
           Edit profile
         </button>
+
       </div>
     </div>
   );

@@ -21,7 +21,7 @@ export default function FAQsAccordion({ faqs, containerStyle, titleStyle }: FAQs
 
   return (
     <div style={containerStyle}>
-      <h2 style={{ margin: 0, marginBottom: 24, color: '#2b2b2b', fontSize: 24, fontWeight: 600, ...titleStyle }}>
+      <h2 style={{ margin: 0, marginBottom: 18, marginTop: -10, color: '#2b2b2b', fontSize: 32, fontWeight: 600, textAlign: 'center', ...titleStyle }}>
         Frequently Asked Questions
       </h2>
 
@@ -33,10 +33,11 @@ export default function FAQsAccordion({ faqs, containerStyle, titleStyle }: FAQs
             <div
               key={faq.id}
               style={{
-                border: '1px solid #c8d4e8',
+                border: '1px solid #d0d0d0',
                 borderRadius: 12,
                 overflow: 'hidden',
-                backgroundColor: '#ffffff'
+                backgroundColor: '#ffffff',
+                marginBottom: 8
               }}
             >
               <button
@@ -50,15 +51,16 @@ export default function FAQsAccordion({ faqs, containerStyle, titleStyle }: FAQs
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  fontSize: 14,
+                  fontSize: 20,
                   fontWeight: 500,
-                  color: '#4960ac',
-                  transition: 'background-color 0.2s'
+                  color: '#6277ac',
+                  transition: 'background-color 0.2s',
+                  borderRadius: 12
                 }}
-                onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#f9fbfd')}
+                onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
                 onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
               >
-                <span style={{ textAlign: 'left', flex: 1, marginRight: 12 }}>{faq.question}</span>
+                <span style={{ textAlign: 'left', flex: 1, marginRight: 12 }}><strong>Q :</strong> {faq.question}</span>
                 <span
                   style={{
                     fontSize: 20,
@@ -74,8 +76,8 @@ export default function FAQsAccordion({ faqs, containerStyle, titleStyle }: FAQs
               </button>
 
               {expandedId === faq.id && (
-                <div style={{ borderTop: '1px solid #e8edf5', padding: '16px 20px', backgroundColor: '#f0f3fa' }}>
-                  <p style={{ margin: 0, color: '#6277ac', fontSize: 14, lineHeight: 1.6 }}>{faq.answer}</p>
+                <div style={{ padding: '16px 20px', backgroundColor: '#D0E0F5', borderRadius: '0 0 12px 12px' }}>
+                  <p style={{ margin: 0, color: '#000000', fontSize: 20, lineHeight: 1.6 }}><strong>A :</strong> {faq.answer}</p>
                 </div>
               )}
             </div>

@@ -1,12 +1,82 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.models.models import FAQ
-from app.models.database import get_db
+from app.models.database import get_db, SessionLocal
 from pydantic import BaseModel
 from typing import Optional
 from app.api.auth import require_roles
+import logging
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+def seed_sample_faqs() -> None:
+    db = SessionLocal()
+    try:
+        if db.query(FAQ).count() == 0:
+            sample_faqs = [
+                FAQ(
+                    question="หลักสูตรวิศวกรรมคอมพิวเตอร์แต่ละปี เรียนอะไรบ้าง",
+                    answer="โดยภาพรวม ปี 1 จะเป็นวิชาพื้นฐาน เช่น คณิตศาสตร์ วิทยาศาสตร์ และการเขียนโปรแกรมเบื้องต้น\nปี 2 จะเริ่มเรียนวิชาแกนของภาค เช่น โครงสร้างข้อมูล ระบบดิจิทัล และซอฟต์แวร์พื้นฐาน\nปี 3 จะเป็นวิชาเฉพาะทางมากขึ้น รวมถึงวิชาเลือก\nปี 4 จะเน้นวิชาเลือกเชิงลึก การทำโปรเจค",
+                    category="Course",
+                    display_order=1,
+                    is_active=True,
+                ),
+                FAQ(
+                    question="ลง GENxxx เป็นวิชาช่วย / วิชาเลือกเสรี (XXXxxx) ได้หรือไม่",
+                    answer="สามารถลงได้ขึ้นอยู่กับโครงสร้างหลักสูตรและแผนการเรียนของนักศึกษาแต่ละคน แนะนำให้ตรวจสอบแผนการเรียนหรือสอบถามภาควิชาก่อนลงทะเบียน",
+                    category="Course",
+                    display_order=2,
+                    is_active=True,
+                ),
+                FAQ(
+                    question="นักศึกษาสามารถติดต่อภาควิชาได้ผ่านช่องทางใด และในเวลาไหน",
+                    answer="นักศึกษาสามารถติดต่อภาควิชาได้ที่ชั้น 10 และผ่านช่องทางที่ภาคกำหนด เช่น แชทหรือเพจ ในวันและเวลาราชการ หากติดต่อนอกเวลาสามารถฝากข้อความไว้ได้",
+                    category="Contact",
+                    display_order=3,
+                    is_active=True,
+                ),
+                FAQ(
+                    question="เวลาสอบชนกัน / ทับซ้อน / คาบเกี่ยวกัน ทำเรื่องขอเลื่อนสอบได้หรือไม่",
+                    answer="สามารถทำเรื่องขอเลื่อนสอบได้ (สทน.19) ขอลงทะเบียนรายวิชาที่มีเวลาสอบซ้อน โดยต้องรีบแจ้งอาจารย์ผู้สอน พร้อมแนบตารางสอบเป็นหลักฐาน ทั้งนี้การอนุญาตขึ้นอยู่กับดุลยพินิจของอาจารย์ผู้สอน",
+                    category="Exam",
+                    display_order=4,
+                    is_active=True,
+                ),
+                FAQ(
+                    question="ถ้าถอนรายวิชาแล้วจำนวนหน่วยกิตรวมที่ลงทะเบียนต่ำกว่ากำหนด (ป.ตรี ขั้นต่ำ 12 หน่วยกิต) ได้ไหม",
+                    answer="สามารถทำเรื่องยื่นคำร้องขอลงทะเบียนต่ำกว่ากำหนด (สทน.18)",
+                    category="Withdrawal",
+                    display_order=5,
+                    is_active=True,
+                ),
+                FAQ(
+                    question="จ่ายค่าเทอมช้าหรือผ่อนผันค่าเทอมได้ไหม",
+                    answer="สามารถขอผ่อนผันหรือจ่ายล่าช้าได้ตามเงื่อนไขของมหาวิทยาลัย โดยต้องยื่นคำร้องและดำเนินการตามขั้นตอนที่กำหนด",
+                    category="Payment",
+                    display_order=6,
+                    is_active=True,
+                ),
+                FAQ(
+                    question="บางปีชั่วโมงกิจกรรมไม่ครบ 25 ชม. แต่รวมแล้วเกิน 100 ชม. จะมีปัญหาตอนจบไหม",
+                    answer="การพิจารณาชั่วโมงกิจกรรมจะดูตามเกณฑ์ของหลักสูตรเป็นหลัก หากรวมชั่วโมงครบตามที่กำหนดแล้ว โดยปกติจะไม่มีปัญหา",
+                    category="Requirements",
+                    display_order=7,
+                    is_active=True,
+                ),
+                FAQ(
+                    question="ทุกคนต้องสอบ TETET ไหม",
+                    answer="ต้องสอบตามเงื่อนไขของหลักสูตร หากไม่เข้าสอบหรือไม่ผ่านเกณฑ์ อาจมีผลต่อการยื่นจบการศึกษา",
+                    category="Exam",
+                    display_order=8,
+                    is_active=True,
+                ),
+            ]
+            db.add_all(sample_faqs)
+            db.commit()
+            logger.info("Seeded %s sample FAQs", len(sample_faqs))
+    finally:
+        db.close()
 
 class FAQCreate(BaseModel):
     question: str

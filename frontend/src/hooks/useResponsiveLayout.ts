@@ -1,8 +1,3 @@
-/**
- * Hook for responsive layout calculations
- * Returns responsive dimensions based on screen size
- */
-
 import { useState, useEffect } from 'react';
 
 export interface ResponsiveLayout {
@@ -21,9 +16,9 @@ export const useResponsiveLayout = (): ResponsiveLayout => {
   const [layout, setLayout] = useState<ResponsiveLayout>({
     minHeight: 730,
     mainPaddingLeft: 100,
-    sidebarWidth: 285,
+    sidebarWidth: 300,
     sidebarHeight: 730,
-    contentWidth: 'calc(100% - 285px)',
+    contentWidth: 'calc(100% - 300px)',
     modalWidth: 750,
     modalHeight: 580,
     inputWidth: 550,
@@ -40,9 +35,9 @@ export const useResponsiveLayout = (): ResponsiveLayout => {
         setLayout({
           minHeight: height > 730 ? height : 730,
           mainPaddingLeft: 120,
-          sidebarWidth: 300,
+          sidebarWidth: 340,
           sidebarHeight: height > 730 ? height : 730,
-          contentWidth: width > 585 ? `calc(100% - 300px)` : '100%',
+          contentWidth: width > 585 ? `calc(100% - 340px)` : '100%',
           modalWidth: 850,
           modalHeight: 650,
           inputWidth: 600,
@@ -54,9 +49,9 @@ export const useResponsiveLayout = (): ResponsiveLayout => {
         setLayout({
           minHeight: height > 730 ? height : 730,
           mainPaddingLeft: 100,
-          sidebarWidth: 285,
+          sidebarWidth: 320,
           sidebarHeight: height > 730 ? height : 730,
-          contentWidth: width > 385 ? `calc(100% - 285px)` : '100%',
+          contentWidth: width > 385 ? `calc(100% - 320px)` : '100%',
           modalWidth: 750,
           modalHeight: 580,
           inputWidth: 550,
@@ -117,9 +112,6 @@ export const useResponsiveLayout = (): ResponsiveLayout => {
   return layout;
 };
 
-/**
- * Simpler hook for just modal dimensions
- */
 export const useModalDimensions = () => {
   const layout = useResponsiveLayout();
   return {

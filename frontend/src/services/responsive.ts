@@ -1,8 +1,3 @@
-/**
- * Responsive utility functions for styling
- * Helps create adaptive layouts based on screen size
- */
-
 import React from 'react';
 
 /**

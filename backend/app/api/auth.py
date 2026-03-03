@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from pydantic import BaseModel, EmailStr
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
@@ -10,9 +11,10 @@ import hashlib
 import base64
 import secrets
 import smtplib
+import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from app.models.models import User
+from app.models.models import User, Chat
 from app.models.database import get_db
 from app.config import (
     SECRET_KEY,
@@ -27,6 +29,7 @@ from app.config import (
     SMTP_FROM,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Password hashing - support argon2 + bcrypt for backward compatibility
@@ -112,10 +115,15 @@ def send_verification_email(to_email: str, verify_url: str):
     msg["To"] = to_email
     msg.attach(MIMEText(html_body, "html"))
 
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-        server.starttls()
-        server.login(SMTP_USER, SMTP_PASS)
-        server.sendmail(SMTP_FROM, to_email, msg.as_string())
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_FROM, to_email, msg.as_string())
+        logger.info(f"Verification email sent to {to_email}")
+    except Exception as e:
+        logger.error(f"Failed to send verification email to {to_email}: {str(e)}")
+        raise
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
@@ -403,3 +411,224 @@ async def update_user_role(
     db.commit()
     db.refresh(user)
     return {"message": "Role updated", "user_id": user.id, "role": user.role}
+
+
+@router.get("/users")
+async def get_all_users(
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Admin ดูรายชื่อ user ทั้งหมด
+    """
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admin can view users")
+    
+    users = db.query(User).all()
+    last_active_rows = (
+        db.query(Chat.user_id, func.max(Chat.created_at).label("last_active_at"))
+        .group_by(Chat.user_id)
+        .all()
+    )
+    last_active_by_user_id = {row.user_id: row.last_active_at for row in last_active_rows}
+
+    return [
+        {
+            "id": u.id,
+            "name": u.name,
+            "email": u.email,
+            "role": u.role,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "last_active_at": last_active_by_user_id.get(u.id).isoformat() if last_active_by_user_id.get(u.id) else None
+        }
+        for u in users
+    ]
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    payload: dict,
+    db: Session = Depends(get_db)
+):
+    """
+    ส่ง password reset link ไปยัง email
+    """
+    email = payload.get("email", "").strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+    
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        # ไม่แจ้งว่าอีเมลมีอยู่หรือไม่ (security best practice)
+        return {"message": "If email exists, reset link has been sent"}
+    
+    # สร้าง reset token (valid 15 minutes)
+    reset_token = secrets.token_urlsafe(32)
+    user.reset_password_token = reset_token
+    user.reset_password_sent_at = datetime.utcnow()
+    db.add(user)
+    db.commit()
+    
+    # ส่ง email
+    try:
+        reset_link = f"{APP_BASE_URL}/reset-password?token={reset_token}"
+        subject = "ChatCPE - Reset Your Password"
+        html_body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; color: #333;">
+                <h2>Password Reset Request</h2>
+                <p>Click the link below to reset your password. This link is valid for 15 minutes only.</p>
+                <a href="{reset_link}" style="background-color: #6277ac; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                    Reset Password
+                </a>
+                <p style="margin-top: 20px; font-size: 12px; color: #999;">
+                    If you didn't request this, please ignore this email.
+                </p>
+            </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = SMTP_FROM
+        msg["To"] = email
+        
+        msg.attach(MIMEText(html_body, "html"))
+        
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.send_message(msg)
+        
+        logger.info(f"Password reset email sent to {email}")
+        return {"message": "If email exists, reset link has been sent"}
+    except Exception as e:
+        logger.error(f"Failed to send reset email to {email}: {str(e)}")
+        return {"message": "If email exists, reset link has been sent"}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    payload: dict,
+    db: Session = Depends(get_db)
+):
+    """
+    รีเซ็ตรหัสผ่านด้วย token
+    """
+    token = payload.get("token", "").strip()
+    new_password = payload.get("new_password", "").strip()
+    
+    if not token or not new_password:
+        raise HTTPException(status_code=400, detail="Token and password are required")
+    
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    
+    user = db.query(User).filter(User.reset_password_token == token).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+    
+    # ตรวจสอบว่า token หมดอายุหรือไม่ (15 minutes)
+    if user.reset_password_sent_at:
+        token_age = datetime.utcnow() - user.reset_password_sent_at
+        if token_age > timedelta(minutes=15):
+            user.reset_password_token = None
+            user.reset_password_sent_at = None
+            db.add(user)
+            db.commit()
+            logger.warning(f"Password reset token expired for user {user.email}")
+            raise HTTPException(status_code=400, detail="Token has expired. Request a new one.")
+    
+    # อัปเดตรหัสผ่าน
+    user.hashed_password = pwd_context.hash(new_password)
+    user.reset_password_token = None  # ลบ token หลังใช้
+    user.reset_password_sent_at = None
+    db.add(user)
+    db.commit()
+    
+    logger.info(f"Password reset successfully for user {user.email}")
+    return {"message": "Password reset successfully", "success": True}
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: int,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Admin ลบ user ที่ระบุได้
+    """
+    # ตรวจสอบว่าผู้เรียก (current_user) เป็น admin หรือไม่
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admin can delete users")
+    
+    # ตรวจสอบว่า user ที่ต้องการลบมีอยู่หรือไม่
+    user_to_delete = db.query(User).filter(User.id == user_id).first()
+    if not user_to_delete:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # ไม่อนุญาตให้ลบผู้ใช้ที่มี role เป็น admin
+    if user_to_delete.role == "admin":
+        raise HTTPException(status_code=403, detail="Cannot delete admin user")
+    
+    # ลบ user และข้อมูลที่เกี่ยวข้อง (cascades จะถูกจัดการโดย database)
+    db.delete(user_to_delete)
+    db.commit()
+    
+    logger.info(f"User {user_to_delete.email} (ID: {user_id}) deleted by admin {current_user.email}")
+    return {"message": f"User {user_to_delete.email} deleted successfully"}
+
+
+@router.post("/users/{user_id}/notify-delete")
+async def notify_user_before_delete(
+    user_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Admin ส่งการแจ้งเตือนไปยังผู้ใช้ก่อนลบ
+    """
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admin can notify users")
+
+    user_to_notify = db.query(User).filter(User.id == user_id).first()
+    if not user_to_notify:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user_to_notify.role == "admin":
+        raise HTTPException(status_code=403, detail="Cannot send delete warning to admin user")
+
+    if not SMTP_HOST or not SMTP_USER or not SMTP_PASS:
+        raise HTTPException(status_code=500, detail="SMTP is not configured")
+
+    try:
+        subject = "ChatCPE - Account Deletion Warning"
+        html_body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                <h2>แจ้งเตือนสำคัญ</h2>
+                <p>เรียนคุณ {user_to_notify.name},</p>
+                <p>บัญชีผู้ใช้งานของคุณกำลังจะถูกลบออก เนื่องจากระบบได้ทำการตรวจสอบว่าคุณไม่ได้เข้าใช้งานเว็บไซต์นี้เป็นเวลานาน</p>
+                <p>หากคุณยังต้องการใช้งานบัญชีนี้ กรุณาเข้าสู่ระบบหรือติดต่อผู้ดูแลระบบโดยเร็วที่สุด</p>
+                <p style="margin-top: 20px; color: #666; font-size: 12px;">This message was sent automatically by ChatCPE.</p>
+            </body>
+        </html>
+        """
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = SMTP_FROM
+        msg["To"] = user_to_notify.email
+        msg.attach(MIMEText(html_body, "html"))
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.send_message(msg)
+
+        logger.info(f"Delete warning email sent to {user_to_notify.email} by {current_user.email}")
+        return {"message": f"Notification sent to {user_to_notify.email}"}
+    except Exception as e:
+        logger.error(f"Failed to send delete warning to {user_to_notify.email}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to send notification email")

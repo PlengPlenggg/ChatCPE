@@ -22,6 +22,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onSwitchToSignUp?: () => void;
+  onSwitchToForgotPassword?: () => void;
   onSubmitSignIn?: () => void;
 };
 
@@ -56,7 +57,7 @@ function PrimaryButton({ onClick, disabled }: { onClick: () => void; disabled?: 
   );
 }
 
-function SignInModal({ open, onClose, onSwitchToSignUp, onSubmitSignIn }: Props) {
+function SignInModal({ open, onClose, onSwitchToSignUp, onSwitchToForgotPassword, onSubmitSignIn }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -174,6 +175,26 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSubmitSignIn }: Props)
         )}
 
         <PrimaryButton onClick={handleSignIn} disabled={loading} />
+
+        <button
+          onClick={onSwitchToForgotPassword}
+          style={{
+            position: 'absolute',
+            left: 374.5,
+            top: 380,
+            transform: 'translate(-50%, -50%)',
+            width: 185,
+            height: 22,
+            border: 'none',
+            background: 'transparent',
+            color: '#6277ac',
+            cursor: 'pointer',
+            fontFamily: 'Inter, system-ui, sans-serif',
+            fontSize: 10
+          }}
+        >
+          <span style={{ color: '#6277ac', textDecoration: 'underline' }}>Forgot Password?</span>
+        </button>
 
         <button
           onClick={onSwitchToSignUp}

@@ -1,12 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 import requests
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
+from collections import Counter
+import re
+import time
+import asyncio
 from app.models.models import Chat, Answer, User
 from app.models.database import get_db
-from app.config import OPENWEBUI_URL, OPENWEBUI_API_KEY
-from app.api.auth import get_current_user, get_current_user_optional
+from app.config import (
+    OPENWEBUI_URL,
+    OPENWEBUI_API_KEY,
+    RAG_SERVICE_URL,
+    RAG_REQUEST_TIMEOUT_SECONDS,
+    RAG_MAX_RETRIES,
+    RAG_RETRY_DELAY_SECONDS,
+)
+from app.api.auth import get_current_user, get_current_user_optional, require_roles
 from pydantic import BaseModel
 from typing import Optional, List
 import logging
@@ -31,6 +42,97 @@ class ThreadData(BaseModel):
     created_at: str
     messages: List[dict]
 
+
+def normalize_question_text(text: str) -> str:
+    normalized = (text or "").strip().lower()
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized
+
+
+def extract_rag_answer(payload: object) -> Optional[str]:
+    if isinstance(payload, dict):
+        direct_fields = ["answer", "response", "text", "result"]
+        for key in direct_fields:
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+        data_obj = payload.get("data")
+        if isinstance(data_obj, dict):
+            for key in direct_fields:
+                value = data_obj.get(key)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+
+    if isinstance(payload, str) and payload.strip():
+        return payload.strip()
+
+    return None
+
+
+async def request_rag_answer(question: str) -> Optional[str]:
+    headers = {"Content-Type": "application/json"}
+    payload = {"question": question}
+
+    attempts = max(1, int(RAG_MAX_RETRIES))
+    total_timeout_budget = 20.0
+    started_at = time.monotonic()
+
+    for attempt in range(1, attempts + 1):
+        elapsed = time.monotonic() - started_at
+        remaining_budget = total_timeout_budget - elapsed
+        if remaining_budget <= 0:
+            logger.warning("RAG budget exceeded before attempt %s", attempt)
+            break
+
+        per_attempt_timeout = min(float(RAG_REQUEST_TIMEOUT_SECONDS), max(2.0, remaining_budget))
+
+        try:
+            response = requests.post(
+                f"{RAG_SERVICE_URL}/rag/answer",
+                headers=headers,
+                json=payload,
+                timeout=per_attempt_timeout,
+            )
+
+            logger.info(
+                "RAG attempt %s/%s status=%s",
+                attempt,
+                attempts,
+                response.status_code,
+            )
+
+            if not response.ok:
+                logger.warning("RAG returned non-OK status on attempt %s", attempt)
+            else:
+                try:
+                    parsed = response.json()
+                except ValueError:
+                    parsed = response.text
+
+                answer = extract_rag_answer(parsed)
+                if answer:
+                    logger.info("RAG answered successfully on attempt %s", attempt)
+                    return answer
+
+                logger.warning("RAG response on attempt %s had no usable answer", attempt)
+
+        except requests.exceptions.RequestException as err:
+            logger.warning("RAG request error on attempt %s/%s: %s", attempt, attempts, str(err))
+
+        if attempt < attempts:
+            backoff = max(0.2, float(RAG_RETRY_DELAY_SECONDS)) * attempt
+            elapsed = time.monotonic() - started_at
+            remaining_budget = total_timeout_budget - elapsed
+            if remaining_budget <= 0:
+                break
+
+            sleep_time = min(backoff, remaining_budget)
+            logger.info("Retrying RAG in %.1f seconds", sleep_time)
+            await asyncio.sleep(sleep_time)
+
+    return None
+
 @router.post("/send", response_model=ChatResponse)
 async def send_message(
     chat_msg: ChatMessage, 
@@ -46,51 +148,14 @@ async def send_message(
         user_id_from_msg = chat_msg.user_id or (current_user.id if current_user else None)
         thread_id = chat_msg.thread_id
         logger.info(f"Received message: {chat_msg.message} from user/guest: {user_id_from_msg}, thread: {thread_id}")
-        logger.info(f"Calling Open WebUI at: {OPENWEBUI_URL}")
         
-        # ส่ง message ไปให้ Open WebUI
-        headers = {"Content-Type": "application/json"}
-        if OPENWEBUI_API_KEY:
-            headers["Authorization"] = f"Bearer {OPENWEBUI_API_KEY}"
+        logger.info(f"Calling RAG Service at: {RAG_SERVICE_URL}")
+        llm_response = await request_rag_answer(chat_msg.message)
         
-        payload = {
-            "model": "default",
-            "messages": [
-                {"role": "user", "content": chat_msg.message}
-            ],
-            "stream": False
-        }
-        logger.info(f"Payload: {payload}")
-        
-        # Try to call Open WebUI, but fall back to mock response if unavailable
-        llm_response = None
-        try:
-            response = requests.post(
-                f"{OPENWEBUI_URL}/api/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=5  # Reduced timeout to 5 seconds
-            )
-            
-            logger.info(f"Open WebUI response status: {response.status_code}")
-            
-            if response.ok:
-                data = response.json()
-                logger.info(f"Open WebUI parsed response: {str(data)[:500]}")
-                try:
-                    llm_response = data["choices"][0]["message"]["content"]
-                except (KeyError, IndexError, TypeError) as e:
-                    logger.error(f"Failed to parse Open WebUI response: {str(e)}")
-            else:
-                logger.warning(f"Open WebUI returned error {response.status_code}")
-                
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
-            logger.warning(f"Open WebUI unavailable: {str(e)}. Using mock response.")
-        
-        # If Open WebUI failed, use a mock response
+        # If RAG Service failed, use a mock response
         if not llm_response:
             llm_response = f"ขอบคุณสำหรับคำถาม: '{chat_msg.message}'\n\nขณะนี้ระบบ AI กำลังอยู่ในช่วงปรับปรุง ดังนั้นจึงไม่สามารถตอบคำถามได้ในขณะนี้\n\nกรุณาติดต่อเจ้าหน้าที่เพื่อขอความช่วยเหลือ หรือลองใหม่อีกครั้งในภายหลัง"
-            logger.info("Using mock response due to Open WebUI unavailability")
+            logger.info("Using mock response due to RAG Service unavailability")
         
         # บันทึก chat ลง database เฉพาะเมื่อมี user_id (logged-in user)
         chat_id = None
@@ -106,7 +171,7 @@ async def send_message(
             # บันทึก answer
             answer = Answer(
                 chat_id=chat.id,
-                llm_provider="open_webui",
+                llm_provider="rag_service",
                 answer=llm_response
             )
             db.add(answer)
@@ -326,4 +391,114 @@ async def delete_chat_thread(
     except Exception as e:
         db.rollback()
         logger.error(f"Error deleting chat thread: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/analytics")
+async def get_chat_analytics(
+    db: Session = Depends(get_db),
+    days: Optional[int] = Query(default=None, ge=1, le=365),
+    current_user: User = Depends(require_roles(["admin"]))
+):
+    """
+    Dashboard analytics สำหรับแอดมิน:
+    - คำถามที่ถูกถามบ่อยที่สุด
+    - ช่วงเวลาที่มีการใช้งานสูงสุด
+    - รองรับ filter ตามจำนวนวันย้อนหลังด้วย query param `days`
+    """
+    try:
+        chats_query = db.query(Chat)
+        if days is not None:
+            cutoff = datetime.utcnow() - timedelta(days=days)
+            chats_query = chats_query.filter(Chat.created_at >= cutoff)
+
+        chats = chats_query.order_by(Chat.created_at.asc()).all()
+        daily_window_days = days if days is not None else 30
+
+        if not chats:
+            return {
+                "total_questions": 0,
+                "unique_users": 0,
+                "top_questions": [],
+                "hourly_usage": [{"hour": h, "count": 0} for h in range(24)],
+                "daily_usage": [],
+                "weekday_usage": [
+                    {"day": day, "count": 0}
+                    for day in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+                ],
+                "peak_hour": {"hour": 0, "count": 0, "label": "00:00 - 00:59"},
+                "peak_day": {"date": None, "count": 0},
+                "generated_at": datetime.utcnow().isoformat(),
+                "applied_range_days": days
+            }
+
+        question_counter: Counter[str] = Counter()
+        hour_counter: Counter[int] = Counter()
+        day_counter: Counter[str] = Counter()
+        weekday_counter: Counter[int] = Counter()
+        distinct_users = set()
+
+        for chat in chats:
+            normalized = normalize_question_text(chat.message)
+            if normalized:
+                question_counter[normalized] += 1
+
+            if chat.created_at:
+                hour_counter[chat.created_at.hour] += 1
+                day_counter[chat.created_at.date().isoformat()] += 1
+                weekday_counter[chat.created_at.weekday()] += 1
+
+            if chat.user_id is not None:
+                distinct_users.add(chat.user_id)
+
+        top_questions = [
+            {"question": question, "count": count}
+            for question, count in question_counter.most_common(10)
+        ]
+
+        hourly_usage = [
+            {"hour": hour, "count": hour_counter.get(hour, 0)}
+            for hour in range(24)
+        ]
+
+        today = datetime.utcnow().date()
+        daily_usage = []
+        for offset in range(daily_window_days - 1, -1, -1):
+            date_value = today - timedelta(days=offset)
+            date_key = date_value.isoformat()
+            daily_usage.append({
+                "date": date_key,
+                "count": day_counter.get(date_key, 0)
+            })
+
+        weekday_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        weekday_usage = [
+            {"day": weekday_labels[idx], "count": weekday_counter.get(idx, 0)}
+            for idx in range(7)
+        ]
+
+        peak_hour, peak_hour_count = max(hour_counter.items(), key=lambda item: item[1], default=(0, 0))
+        peak_day, peak_day_count = max(day_counter.items(), key=lambda item: item[1], default=(None, 0))
+
+        return {
+            "total_questions": len(chats),
+            "unique_users": len(distinct_users),
+            "top_questions": top_questions,
+            "hourly_usage": hourly_usage,
+            "daily_usage": daily_usage,
+            "weekday_usage": weekday_usage,
+            "peak_hour": {
+                "hour": peak_hour,
+                "count": peak_hour_count,
+                "label": f"{peak_hour:02d}:00 - {peak_hour:02d}:59"
+            },
+            "peak_day": {
+                "date": peak_day,
+                "count": peak_day_count
+            },
+            "generated_at": datetime.utcnow().isoformat(),
+            "applied_range_days": days
+        }
+    except Exception as e:
+        logger.error(f"Error getting chat analytics: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
