@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { authAPI } from '../services/api';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
 const ArrowIcon = () => (
   <svg width={25} height={25} viewBox="0 0 24 24" fill="none" stroke="#6277ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -46,12 +47,19 @@ function PrimaryButton({ onClick, disabled, text }: { onClick: () => void; disab
 }
 
 function ForgotPasswordModal({ open, onClose, onBackToSignIn }: Props) {
+  const layout = useResponsiveLayout();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   if (!open) return null;
+
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const modalScale = layout.isMobile
+    ? Math.min((viewportWidth - 24) / 750, (viewportHeight - 24) / 580, 1)
+    : 1;
 
   const handleForgotPassword = async () => {
     if (!email) {
@@ -74,6 +82,67 @@ function ForgotPasswordModal({ open, onClose, onBackToSignIn }: Props) {
     }
   };
 
+  if (layout.isMobile) {
+    return (
+      <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
+        <div style={{ width: '100%', maxWidth: 380, borderRadius: 16, background: 'linear-gradient(to bottom, #f0f6fe, #ffffff)', boxShadow: '5px 5px 10px rgba(0,0,0,0.25)', padding: '16px 14px 18px', boxSizing: 'border-box' }}>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            style={{ width: 36, height: 36, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}
+          >
+            <ArrowIcon />
+          </button>
+
+          <div style={{ color: '#6277ac', fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 600, fontSize: 30, lineHeight: 1.1, textAlign: 'center', marginBottom: 10 }}>
+            Reset Your Password
+          </div>
+
+          <div style={{ color: '#6277ac', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 13, textAlign: 'center', marginBottom: 14 }}>
+            Enter your email address and we will send you a link to reset your password.
+          </div>
+
+          <div style={{ color: '#6277ac', fontSize: 14, marginBottom: 6 }}>Email</div>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleForgotPassword()}
+            placeholder="Enter your email"
+            style={{ width: '100%', padding: '10px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif', marginBottom: 12, boxSizing: 'border-box', background: 'transparent' }}
+          />
+
+          {error && (
+            <div style={{ color: '#d32f2f', fontSize: 12, marginBottom: 10, fontFamily: 'Inter, system-ui, sans-serif' }}>
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div style={{ color: '#2e7d32', fontSize: 12, marginBottom: 10, fontFamily: 'Inter, system-ui, sans-serif' }}>
+              {success}
+            </div>
+          )}
+
+          <button
+            onClick={handleForgotPassword}
+            disabled={loading}
+            style={{ width: '100%', height: 44, borderRadius: 40, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', color: '#fff', opacity: loading ? 0.6 : 1, background: 'linear-gradient(90deg, rgba(163,194,230,0.8), rgba(98,119,172,0.8))', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 16, marginBottom: 8 }}
+          >
+            {loading ? 'Sending...' : 'Send Reset Link'}
+          </button>
+
+          <button
+            onClick={onBackToSignIn}
+            style={{ width: '100%', border: 'none', background: 'transparent', color: '#6277ac', cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 12, textDecoration: 'underline' }}
+          >
+            Back to Sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 1000 }}>
       <div
@@ -81,7 +150,8 @@ function ForgotPasswordModal({ open, onClose, onBackToSignIn }: Props) {
           position: 'absolute',
           left: '50%',
           top: '50%',
-          transform: 'translate(-50%, -50%)',
+          transform: `translate(-50%, -50%) scale(${modalScale})`,
+          transformOrigin: 'center center',
           width: 750,
           height: 580,
           borderRadius: 20,

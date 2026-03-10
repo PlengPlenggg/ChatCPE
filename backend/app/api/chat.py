@@ -16,6 +16,7 @@ from app.config import (
     RAG_REQUEST_TIMEOUT_SECONDS,
     RAG_MAX_RETRIES,
     RAG_RETRY_DELAY_SECONDS,
+    RAG_MAX_TOTAL_WAIT_SECONDS,
 )
 from app.api.auth import get_current_user, get_current_user_optional, require_roles
 from pydantic import BaseModel
@@ -75,17 +76,50 @@ async def request_rag_answer(question: str) -> Optional[str]:
     payload = {"question": question}
 
     attempts = max(1, int(RAG_MAX_RETRIES))
-    total_timeout_budget = 20.0
+    raw_timeout = float(RAG_REQUEST_TIMEOUT_SECONDS)
+    timeout_disabled = raw_timeout <= 0
+    timeout_per_attempt = None if timeout_disabled else max(2.0, raw_timeout)
+    retry_delay = max(0.2, float(RAG_RETRY_DELAY_SECONDS))
+    max_total_wait = float(RAG_MAX_TOTAL_WAIT_SECONDS)
+    total_timeout_budget = max_total_wait if max_total_wait > 0 else None
+    if total_timeout_budget is None and timeout_per_attempt is not None:
+        total_timeout_budget = (timeout_per_attempt * attempts) + (retry_delay * max(0, attempts - 1)) + 1.0
     started_at = time.monotonic()
 
-    for attempt in range(1, attempts + 1):
-        elapsed = time.monotonic() - started_at
-        remaining_budget = total_timeout_budget - elapsed
-        if remaining_budget <= 0:
-            logger.warning("RAG budget exceeded before attempt %s", attempt)
-            break
+    if timeout_disabled:
+        logger.info(
+            "RAG config: url=%s timeout=disabled attempts=%s retry_delay=%.1fs max_total_wait=%s",
+            RAG_SERVICE_URL,
+            attempts,
+            retry_delay,
+            "disabled" if total_timeout_budget is None else f"{total_timeout_budget:.1f}s",
+        )
+    else:
+        logger.info(
+            "RAG config: url=%s timeout_per_attempt=%.1fs attempts=%s retry_delay=%.1fs budget=%s",
+            RAG_SERVICE_URL,
+            timeout_per_attempt,
+            attempts,
+            retry_delay,
+            "disabled" if total_timeout_budget is None else f"{total_timeout_budget:.1f}s",
+        )
 
-        per_attempt_timeout = min(float(RAG_REQUEST_TIMEOUT_SECONDS), max(2.0, remaining_budget))
+    for attempt in range(1, attempts + 1):
+        remaining_budget = None
+        if total_timeout_budget is not None:
+            elapsed = time.monotonic() - started_at
+            remaining_budget = total_timeout_budget - elapsed
+            if remaining_budget <= 0:
+                logger.warning("RAG budget exceeded before attempt %s", attempt)
+                break
+
+        per_attempt_timeout = timeout_per_attempt
+        if timeout_per_attempt is None and remaining_budget is not None:
+            per_attempt_timeout = max(0.1, remaining_budget)
+        elif timeout_per_attempt is not None and remaining_budget is not None:
+            # Increase timeout window on later attempts for slow queries.
+            scaled_timeout = timeout_per_attempt * attempt
+            per_attempt_timeout = min(scaled_timeout, max(0.1, remaining_budget))
 
         try:
             response = requests.post(
@@ -96,10 +130,11 @@ async def request_rag_answer(question: str) -> Optional[str]:
             )
 
             logger.info(
-                "RAG attempt %s/%s status=%s",
+                "RAG attempt %s/%s status=%s timeout=%s",
                 attempt,
                 attempts,
                 response.status_code,
+                "disabled" if per_attempt_timeout is None else f"{per_attempt_timeout:.1f}s",
             )
 
             if not response.ok:
@@ -117,17 +152,30 @@ async def request_rag_answer(question: str) -> Optional[str]:
 
                 logger.warning("RAG response on attempt %s had no usable answer", attempt)
 
+        except requests.exceptions.Timeout as err:
+            timeout_label = "disabled" if per_attempt_timeout is None else f"{per_attempt_timeout:.1f}s"
+            budget_label = "disabled" if remaining_budget is None else f"{remaining_budget:.1f}s"
+            logger.warning(
+                "RAG timeout on attempt %s/%s after %s (remaining budget %s): %s",
+                attempt,
+                attempts,
+                timeout_label,
+                budget_label,
+                str(err),
+            )
         except requests.exceptions.RequestException as err:
             logger.warning("RAG request error on attempt %s/%s: %s", attempt, attempts, str(err))
 
         if attempt < attempts:
-            backoff = max(0.2, float(RAG_RETRY_DELAY_SECONDS)) * attempt
-            elapsed = time.monotonic() - started_at
-            remaining_budget = total_timeout_budget - elapsed
-            if remaining_budget <= 0:
-                break
-
-            sleep_time = min(backoff, remaining_budget)
+            backoff = retry_delay * attempt
+            if total_timeout_budget is None:
+                sleep_time = backoff
+            else:
+                elapsed = time.monotonic() - started_at
+                remaining_budget = total_timeout_budget - elapsed
+                if remaining_budget <= 0:
+                    break
+                sleep_time = min(backoff, remaining_budget)
             logger.info("Retrying RAG in %.1f seconds", sleep_time)
             await asyncio.sleep(sleep_time)
 

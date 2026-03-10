@@ -76,15 +76,19 @@ function SignInButton({ style, onClick }: { style?: React.CSSProperties; onClick
 
 export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
   const layout = useResponsiveLayout();
+  const isMobileView = layout.isMobile;
   
   // Calculate responsive positions based on layout
-  const sidebarWidth = Math.max(layout.sidebarWidth, 240);
-  const contentLeft = sidebarWidth + 35;
+  const sidebarWidth = isMobileView ? 0 : Math.max(layout.sidebarWidth, 240);
+  const contentLeft = isMobileView ? 12 : sidebarWidth + 35;
   const sidebarLeftPadding = Math.round(Math.max(12, sidebarWidth * 0.08));
   const iconLeft = Math.round(Math.max(24, sidebarWidth * 0.25));
   const labelLeft = Math.round(Math.max(70, sidebarWidth * 0.38));
   const chatDisplayLeft = contentLeft;
-  const chatDisplayRight = 40;
+  const chatDisplayRight = isMobileView ? 12 : 40;
+  const contentTopOffset = isMobileView ? 94 : 120;
+  const contentBottomOffset = isMobileView ? 108 : 150;
+  const inputBottomOffset = isMobileView ? 12 : 30;
   
   const [modal, setModal] = useState<'none' | 'signin' | 'signup' | 'forgotpassword'>('none');
   const [userManagementOpen, setUserManagementOpen] = useState(false);
@@ -95,7 +99,106 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
   const [nextId, setNextId] = useState(1);
   const [isTyping, setIsTyping] = useState(false);
   const [typingDots, setTypingDots] = useState('');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const chatDisplayRef = React.useRef<HTMLDivElement>(null);
+
+  const linkifyText = useCallback((value: string, keyPrefix: string): React.ReactNode[] => {
+    const urlRegex = /((?:https?:\/\/|www\.)[^\s<]+)/gi;
+    const nodes: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    let index = 0;
+
+    while ((match = urlRegex.exec(value)) !== null) {
+      const rawMatch = match[0];
+      const start = match.index;
+      const end = start + rawMatch.length;
+
+      if (start > lastIndex) {
+        nodes.push(value.slice(lastIndex, start));
+      }
+
+      let cleanUrl = rawMatch;
+      let trailing = '';
+      while (cleanUrl && /[),.!?:;]$/.test(cleanUrl)) {
+        trailing = cleanUrl.slice(-1) + trailing;
+        cleanUrl = cleanUrl.slice(0, -1);
+      }
+
+      const href = cleanUrl.startsWith('www.') ? `https://${cleanUrl}` : cleanUrl;
+      nodes.push(
+        <a key={`${keyPrefix}-url-${index}`} href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#2b5b9f', textDecoration: 'underline', wordBreak: 'break-all' }}>
+          {cleanUrl}
+        </a>
+      );
+      if (trailing) {
+        nodes.push(trailing);
+      }
+
+      lastIndex = end;
+      index += 1;
+    }
+
+    if (lastIndex < value.length) {
+      nodes.push(value.slice(lastIndex));
+    }
+
+    return nodes;
+  }, []);
+
+  const renderBotMessage = useCallback((text: string) => {
+    const lines = text.split('\n');
+    const nodes: JSX.Element[] = [];
+    let paragraphBuffer: string[] = [];
+    let listBuffer: string[] = [];
+
+    const flushParagraph = () => {
+      if (!paragraphBuffer.length) return;
+      nodes.push(
+        <div key={`p-${nodes.length}`} style={{ whiteSpace: 'pre-wrap' }}>
+          {linkifyText(paragraphBuffer.join('\n'), `p-${nodes.length}`)}
+        </div>
+      );
+      paragraphBuffer = [];
+    };
+
+    const flushList = () => {
+      if (!listBuffer.length) return;
+      nodes.push(
+        <ul
+          key={`ul-${nodes.length}`}
+          style={{
+            margin: '4px 0',
+            paddingLeft: '1.25em',
+            listStyleType: 'disc'
+          }}
+        >
+          {listBuffer.map((item, idx) => (
+            <li key={`li-${idx}`} style={{ margin: '2px 0' }}>
+              {linkifyText(item, `li-${idx}`)}
+            </li>
+          ))}
+        </ul>
+      );
+      listBuffer = [];
+    };
+
+    for (const line of lines) {
+      const bulletMatch = line.match(/^\s*[-•]\s+(.+)$/);
+      if (bulletMatch) {
+        flushParagraph();
+        listBuffer.push(bulletMatch[1]);
+      } else {
+        flushList();
+        paragraphBuffer.push(line);
+      }
+    }
+
+    flushParagraph();
+    flushList();
+
+    return nodes;
+  }, [linkifyText]);
 
   // Animate typing dots
   useEffect(() => {
@@ -195,11 +298,20 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
         background: 'linear-gradient(to bottom, #f0f6fe, #ffffff)'
       }}
     >
-      {/* Left sidebar */}
-      <div style={{ position: 'absolute', left: 0, top: 0, width: sidebarWidth, height: '100vh', background: '#e4eef8' }} />
+      {isMobileView && (
+        <>
+          <div style={{ position: 'absolute', width: 220, height: 220, right: -70, top: 90, borderRadius: '50%', background: 'radial-gradient(circle, rgba(112,138,196,0.20), rgba(112,138,196,0))', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', width: 180, height: 180, left: -60, top: 220, borderRadius: '50%', background: 'radial-gradient(circle, rgba(250,165,56,0.16), rgba(250,165,56,0))', pointerEvents: 'none' }} />
+        </>
+      )}
 
-      {/* Logo */}
-      <div
+      {!isMobileView && (
+        <>
+          {/* Left sidebar */}
+          <div style={{ position: 'absolute', left: 0, top: 0, width: sidebarWidth, height: '100vh', background: '#e4eef8' }} />
+
+          {/* Logo */}
+          <div
         style={{
           position: 'absolute',
           left: 0,
@@ -211,58 +323,85 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
           justifyContent: 'center',
           pointerEvents: 'none'
         }}
-      >
-        <img alt="CPE Logo" src={imgLogoCpe} style={{ maxWidth: '70%', maxHeight: '100%', objectFit: 'contain' }} />
-      </div>
+          >
+            <img alt="CPE Logo" src={imgLogoCpe} style={{ maxWidth: '70%', maxHeight: '100%', objectFit: 'contain' }} />
+          </div>
 
-      {/* Divider line */}
-      <div style={{ position: 'absolute', left: sidebarLeftPadding, top: 233, width: sidebarWidth - (sidebarLeftPadding * 2), height: 1 }}>
-        <img alt="" src={imgLine1} style={{ display: 'block', width: '100%', height: '100%' }} />
-      </div>
+          {/* Divider line */}
+          <div style={{ position: 'absolute', left: sidebarLeftPadding, top: 233, width: sidebarWidth - (sidebarLeftPadding * 2), height: 1 }}>
+            <img alt="" src={imgLine1} style={{ display: 'block', width: '100%', height: '100%' }} />
+          </div>
 
-      {/* Dynamic highlight background */}
-      <div style={{ position: 'absolute', left: sidebarLeftPadding, top: highlightTop, width: sidebarWidth - (sidebarLeftPadding * 2), height: 44, borderRadius: 10, background: '#7587b8', transition: 'top 0.25s' }} />
-      <div style={{ position: 'absolute', left: sidebarLeftPadding + 6, top: highlightTop, width: sidebarWidth - (sidebarLeftPadding * 2) - 12, height: 44, borderRadius: 10, background: '#fff', transition: 'top 0.25s' }} />
+          {/* Dynamic highlight background */}
+          <div style={{ position: 'absolute', left: sidebarLeftPadding, top: highlightTop, width: sidebarWidth - (sidebarLeftPadding * 2), height: 44, borderRadius: 10, background: '#7587b8', transition: 'top 0.25s' }} />
+          <div style={{ position: 'absolute', left: sidebarLeftPadding + 6, top: highlightTop, width: sidebarWidth - (sidebarLeftPadding * 2) - 12, height: 44, borderRadius: 10, background: '#fff', transition: 'top 0.25s' }} />
 
-      {/* AI Chat */}
-      <button onClick={() => setSelected('ai')} style={{ position: 'absolute', left: iconLeft, top: 266, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+          {/* AI Chat */}
+          <button onClick={() => setSelected('ai')} style={{ position: 'absolute', left: iconLeft, top: 266, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
         <div style={{ position: 'absolute', inset: '12.5%' }}>
           <div style={{ position: 'absolute', inset: '-5.93%' }}>
             <img alt="" src={img3} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'ai' ? 'brightness(0) saturate(100%)' : 'brightness(0) saturate(100%) invert(46%) sepia(10%) saturate(842%) hue-rotate(178deg) brightness(94%) contrast(87%)' }} />
           </div>
         </div>
-      </button>
-      <button onClick={() => setSelected('ai')} style={{ position: 'absolute', left: labelLeft, top: 275.48, transform: 'translateY(-50%)', color: selected === 'ai' ? '#000' : '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>AI Chat</button>
+          </button>
+          <button onClick={() => setSelected('ai')} style={{ position: 'absolute', left: labelLeft, top: 275.48, transform: 'translateY(-50%)', color: selected === 'ai' ? '#000' : '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>AI Chat</button>
 
-      {/* FAQs */}
-      <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: iconLeft, top: 319, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+          {/* FAQs */}
+          <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: iconLeft, top: 319, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
         <div style={{ position: 'absolute', inset: '8.33% 8.33% 12.42% 8.33%' }}>
           <div style={{ position: 'absolute', inset: '-5.61% -5.33%' }}>
             <img alt="" src={img2} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'qa' ? 'brightness(0) saturate(100%)' : 'none' }} />
           </div>
         </div>
-      </button>
-      <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: labelLeft, top: 328.48, transform: 'translateY(-50%)', color: selected === 'qa' ? '#000' : '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>FAQs</button>
+          </button>
+          <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: labelLeft, top: 328.48, transform: 'translateY(-50%)', color: selected === 'qa' ? '#000' : '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>FAQs</button>
 
-      {/* Document */}
-      <button onClick={() => setSelected('doc')} style={{ position: 'absolute', left: iconLeft, top: 372, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+          {/* Document */}
+          <button onClick={() => setSelected('doc')} style={{ position: 'absolute', left: iconLeft, top: 372, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
         <div style={{ position: 'absolute', inset: '5.78% 10.67% 8.34% 8.34%' }}>
           <div style={{ position: 'absolute', inset: '-5.18% -5.49%' }}>
             <img alt="" src={img1} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'doc' ? 'brightness(0) saturate(100%)' : 'none' }} />
           </div>
         </div>
-      </button>
-      <button onClick={() => setSelected('doc')} style={{ position: 'absolute', left: labelLeft, top: 381.48, transform: 'translateY(-50%)', color: selected === 'doc' ? '#000' : '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Document</button>
+          </button>
+          <button onClick={() => setSelected('doc')} style={{ position: 'absolute', left: labelLeft, top: 381.48, transform: 'translateY(-50%)', color: selected === 'doc' ? '#000' : '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Document</button>
 
-      {/* New chat */}
-      <button onClick={handleNewChat} style={{ position: 'absolute', left: 68, top: 183.83, width: 24, height: 24, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+          {/* New chat */}
+          <button onClick={handleNewChat} style={{ position: 'absolute', left: 68, top: 183.83, width: 24, height: 24, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
         <div style={{ position: 'absolute', inset: '5% 10% 5% 10%' }}>
           <div style={{ position: 'absolute', inset: '-5%' }}>
             <img alt="New chat" src={imgNewChat} style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain', opacity: 0.9 }} />
           </div>
         </div>
-      </button>
-      <button onClick={handleNewChat} style={{ position: 'absolute', left: 109.47, top: 196.31, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>New Chat</button>
+          </button>
+          <button onClick={handleNewChat} style={{ position: 'absolute', left: 109.47, top: 196.31, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>New Chat</button>
+        </>
+      )}
+
+      {isMobileView && (
+        <div style={{ position: 'absolute', left: 12, right: 12, top: 10, zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <button onClick={() => setMobileSidebarOpen(true)} style={{ border: 'none', background: '#dfe9f7', color: '#445c94', borderRadius: 8, width: 36, height: 36, fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>≡</button>
+          <img alt="CPE Logo" src={imgLogoCpe} style={{ width: 96, height: 40, objectFit: 'contain' }} />
+          <div style={{ width: 36, height: 36 }} />
+        </div>
+      )}
+
+      {isMobileView && mobileSidebarOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 20, background: 'rgba(0,0,0,0.35)' }} onClick={() => setMobileSidebarOpen(false)}>
+          <div style={{ width: '78vw', maxWidth: 320, height: '100%', background: '#e4eef8', padding: 14, boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <img alt="CPE Logo" src={imgLogoCpe} style={{ width: 96, height: 42, objectFit: 'contain' }} />
+              <button onClick={() => setMobileSidebarOpen(false)} style={{ border: 'none', background: 'transparent', color: '#445c94', fontSize: 24, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+            <button onClick={() => { handleNewChat(); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: '#6277ac', padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>New Chat</button>
+            <button onClick={() => { setSelected('ai'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'ai' ? '#000' : '#6277ac', fontWeight: selected === 'ai' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>AI Chat</button>
+            <button onClick={() => { setSelected('qa'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'qa' ? '#000' : '#6277ac', fontWeight: selected === 'qa' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>FAQs</button>
+            <button onClick={() => { setSelected('doc'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'doc' ? '#000' : '#6277ac', fontWeight: selected === 'doc' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>Document</button>
+            <div style={{ flex: 1 }} />
+            <button onClick={() => { openSignIn(); setMobileSidebarOpen(false); }} style={{ width: '100%', marginTop: 10, border: 'none', background: '#fff', color: '#000', borderRadius: 10, padding: '10px 12px', fontSize: 14, cursor: 'pointer', textAlign: 'left' }}>Sign in</button>
+          </div>
+        </div>
+      )}
 
       {/* Welcome text (only visible on AI when no messages) */}
       {selected === 'ai' && messages.length === 0 && (
@@ -274,21 +413,21 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
 
       {/* Chat display (only visible when messages exist) */}
       {selected === 'ai' && messages.length > 0 && (
-        <div ref={chatDisplayRef} style={{ position: 'absolute', left: chatDisplayLeft, top: 120, right: chatDisplayRight, bottom: 150, overflow: 'auto', padding: 20, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 12 }}>
+        <div ref={chatDisplayRef} style={{ position: 'absolute', left: chatDisplayLeft, top: contentTopOffset, right: chatDisplayRight, bottom: contentBottomOffset, overflow: 'auto', padding: 20, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 12 }}>
           {messages.map((msg) => (
             <div key={msg.id} style={{ marginBottom: 12, display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
               <div
                 style={{
-                  maxWidth: '60%',
+                  maxWidth: isMobileView ? '82%' : '60%',
                   padding: '10px 12px',
                   borderRadius: 12,
                   background: msg.role === 'user' ? '#e6efff' : '#f4f6fb',
                   color: '#2b2b2b',
-                  whiteSpace: 'pre-wrap',
+                  whiteSpace: msg.role === 'bot' ? 'normal' : 'pre-wrap',
                   wordBreak: 'break-word'
                 }}
               >
-                {msg.text}
+                {msg.role === 'bot' ? renderBotMessage(msg.text) : msg.text}
               </div>
             </div>
           ))}
@@ -315,7 +454,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
 
       {/* Search bar and send button (only on AI) */}
       {selected === 'ai' && (
-        <div style={{ position: 'absolute', left: chatDisplayLeft, right: chatDisplayRight, bottom: 30, height: 96 }}>
+        <div style={{ position: 'absolute', left: chatDisplayLeft, right: chatDisplayRight, bottom: inputBottomOffset, height: isMobileView ? 84 : 96 }}>
           <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid #4960ac', borderRadius: 15 }} />
           <input
             disabled={isTyping}
@@ -325,15 +464,15 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
               if (e.key === 'Enter' && !isTyping) handleSend();
             }}
             placeholder="พิมพ์ข้อความที่นี่..."
-            style={{ position: 'absolute', left: 20, top: 26, right: 80, height: 58, border: 'none', outline: 'none', fontSize: 16, lineHeight: 'normal', paddingTop: 20, paddingBottom: 20, background: 'transparent', opacity: isTyping ? 0.6 : 1, cursor: isTyping ? 'not-allowed' : 'text' }}
+            style={{ position: 'absolute', left: 16, top: isMobileView ? 18 : 26, right: 72, height: isMobileView ? 46 : 58, border: 'none', outline: 'none', fontSize: isMobileView ? 14 : 16, lineHeight: 'normal', paddingTop: isMobileView ? 12 : 20, paddingBottom: isMobileView ? 12 : 20, background: 'transparent', opacity: isTyping ? 0.6 : 1, cursor: isTyping ? 'not-allowed' : 'text' }}
           />
           <button
             disabled={isTyping}
             onClick={handleSend}
-            style={{ position: 'absolute', right: 20, top: 28, width: 40, height: 40, borderRadius: 100, background: '#7587b8', border: 'none', cursor: isTyping ? 'not-allowed' : 'pointer', opacity: isTyping ? 0.6 : 1 }}
+            style={{ position: 'absolute', right: 16, top: isMobileView ? 24 : 28, width: isMobileView ? 34 : 40, height: isMobileView ? 34 : 40, borderRadius: 100, background: '#7587b8', border: 'none', cursor: isTyping ? 'not-allowed' : 'pointer', opacity: isTyping ? 0.6 : 1 }}
             aria-label="Send"
           />
-          <div style={{ position: 'absolute', right: 26, top: 34, width: 27.586, height: 27.586, overflow: 'hidden', pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', right: isMobileView ? 22 : 26, top: isMobileView ? 30 : 34, width: isMobileView ? 21 : 27.586, height: isMobileView ? 21 : 27.586, overflow: 'hidden', pointerEvents: 'none' }}>
             <div style={{ position: 'absolute', inset: '20.83%' }}>
               <div style={{ position: 'absolute', inset: '-7.77%' }}>
                 <img alt="" src={img} style={{ display: 'block', width: '100%', height: '100%' }} />
@@ -345,13 +484,13 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
 
       {/* Placeholder Q&A content */}
       {selected === 'qa' && (
-        <div style={{ position: 'absolute', left: chatDisplayLeft, top: 80, right: chatDisplayRight, bottom: 30, overflow: 'auto', padding: 16 }}>
+        <div style={{ position: 'absolute', left: chatDisplayLeft, top: contentTopOffset, right: chatDisplayRight, bottom: inputBottomOffset, overflow: 'auto', padding: 16 }}>
           <FAQsAccordion faqs={faqs} />
         </div>
       )}
 
       {selected === 'doc' && (
-        <div style={{ position: 'absolute', left: chatDisplayLeft, top: 100, right: chatDisplayRight, bottom: 30, overflow: 'auto', padding: 24, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 16 }}>
+        <div style={{ position: 'absolute', left: chatDisplayLeft, top: contentTopOffset, right: chatDisplayRight, bottom: inputBottomOffset, overflow: 'auto', padding: isMobileView ? 14 : 24, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 16 }}>
           <DocumentsPage />
         </div>
       )}
@@ -360,7 +499,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
       {/* <LogOut style={{ position: 'absolute', left: 341, top: 499, width: 18, height: 18, overflow: 'hidden' }} /> */}
 
       {/* Sign In trigger */}
-      <SignInButton onClick={openSignIn} style={{ position: 'absolute', left: 25, bottom: 30 }} />
+      {!isMobileView && <SignInButton onClick={openSignIn} style={{ position: 'absolute', left: 25, bottom: 30 }} />}
 
       <Suspense fallback={null}>
         {modal === 'signin' && (

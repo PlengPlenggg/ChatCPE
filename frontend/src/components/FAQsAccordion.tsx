@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
 interface FAQ {
   id: string | number;
@@ -13,6 +14,8 @@ interface FAQsAccordionProps {
 }
 
 export default function FAQsAccordion({ faqs, containerStyle, titleStyle }: FAQsAccordionProps) {
+  const layout = useResponsiveLayout();
+  const isMobileView = layout.isMobile;
   const [expandedId, setExpandedId] = useState<string | number | null>(null);
 
   const toggleExpand = (id: string | number) => {
@@ -21,7 +24,7 @@ export default function FAQsAccordion({ faqs, containerStyle, titleStyle }: FAQs
 
   return (
     <div style={containerStyle}>
-      <h2 style={{ margin: 0, marginBottom: 18, marginTop: -10, color: '#2b2b2b', fontSize: 32, fontWeight: 600, textAlign: 'center', ...titleStyle }}>
+      <h2 style={{ margin: 0, marginBottom: isMobileView ? 12 : 18, marginTop: isMobileView ? 0 : -10, color: '#2b2b2b', fontSize: isMobileView ? 24 : 32, fontWeight: 600, textAlign: 'center', ...titleStyle }}>
         Frequently Asked Questions
       </h2>
 
@@ -44,14 +47,14 @@ export default function FAQsAccordion({ faqs, containerStyle, titleStyle }: FAQs
                 onClick={() => toggleExpand(faq.id)}
                 style={{
                   width: '100%',
-                  padding: '16px 20px',
+                  padding: isMobileView ? '12px 14px' : '16px 20px',
                   background: '#ffffff',
                   border: 'none',
                   cursor: 'pointer',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  fontSize: 20,
+                  fontSize: isMobileView ? 15 : 20,
                   fontWeight: 500,
                   color: '#6277ac',
                   transition: 'background-color 0.2s',
@@ -76,8 +79,8 @@ export default function FAQsAccordion({ faqs, containerStyle, titleStyle }: FAQs
               </button>
 
               {expandedId === faq.id && (
-                <div style={{ padding: '16px 20px', backgroundColor: '#D0E0F5', borderRadius: '0 0 12px 12px' }}>
-                  <p style={{ margin: 0, color: '#000000', fontSize: 20, lineHeight: 1.6 }}><strong>A :</strong> {faq.answer}</p>
+                <div style={{ padding: isMobileView ? '12px 14px' : '16px 20px', backgroundColor: '#D0E0F5', borderRadius: '0 0 12px 12px' }}>
+                  <p style={{ margin: 0, color: '#000000', fontSize: isMobileView ? 15 : 20, lineHeight: 1.6 }}><strong>A :</strong> {faq.answer}</p>
                 </div>
               )}
             </div>
