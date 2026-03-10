@@ -28,14 +28,17 @@ type ChatThread = { id: string; title: string; messages: ChatMessage[]; createdA
 
 export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   const layout = useResponsiveLayout();
+  const isMobileView = layout.isMobile;
   const viewHeight = typeof layout.minHeight === 'number' ? layout.minHeight : window.innerHeight;
-  const scale = Math.min(1.15, Math.max(0.85, viewHeight / 900));
-  const sidebarInnerWidth = Math.max(layout.sidebarWidth - Math.round(49 * scale), 180);
-  const sidebarHighlightWidth = Math.max(layout.sidebarWidth - Math.round(55 * scale), 170);
-  const contentLeft = layout.sidebarWidth + Math.round(35 * scale);
-  const sidebarLeftPadding = Math.round(Math.max(12, layout.sidebarWidth * 0.08));
-  const iconLeft = Math.round(Math.max(24, layout.sidebarWidth * 0.25));
-  const labelLeft = Math.round(Math.max(70, layout.sidebarWidth * 0.38));
+  const scale = Math.min(1.15, Math.max(isMobileView ? 0.72 : 0.85, viewHeight / 900));
+  const sidebarWidth = isMobileView ? 0 : layout.sidebarWidth;
+  const sidebarInnerWidth = Math.max(sidebarWidth - Math.round(49 * scale), 180);
+  const sidebarHighlightWidth = Math.max(sidebarWidth - Math.round(55 * scale), 170);
+  const contentLeft = isMobileView ? 12 : sidebarWidth + Math.round(35 * scale);
+  const contentRight = isMobileView ? 12 : 40;
+  const sidebarLeftPadding = Math.round(Math.max(12, sidebarWidth * 0.08));
+  const iconLeft = Math.round(Math.max(24, sidebarWidth * 0.25));
+  const labelLeft = Math.round(Math.max(70, sidebarWidth * 0.38));
 
   const logoTop = Math.round(12 * scale);
   const logoHeight = Math.round(120 * scale);
@@ -51,21 +54,21 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   const sidebarLabelFont = Math.max(12, Math.round(16 * scale));
   const sidebarLabelOffset = Math.round(9.5 * scale);
 
-  const chatDisplayTop = Math.round(120 * scale);
-  const faqTop = Math.round(80 * scale);
-  const docTopContent = Math.round(100 * scale);
+  const chatDisplayTop = isMobileView ? 138 : Math.round(120 * scale);
+  const faqTop = isMobileView ? 138 : Math.round(80 * scale);
+  const docTopContent = isMobileView ? 138 : Math.round(100 * scale);
 
-  const chatInputHeight = Math.round(96 * scale);
-  const chatInputBottom = Math.round(30 * scale);
+  const chatInputHeight = isMobileView ? 80 : Math.round(96 * scale);
+  const chatInputBottom = isMobileView ? 12 : Math.round(30 * scale);
   const chatDisplayBottom = chatInputBottom + chatInputHeight + Math.round(10 * scale);
-  const inputTop = Math.round(26 * scale);
-  const inputHeight = Math.round(58 * scale);
-  const inputRight = Math.round(80 * scale);
-  const inputFontSize = Math.max(12, Math.round(16 * scale));
-  const inputPadY = Math.max(0, Math.round((inputHeight - inputFontSize) / 2) - 1);
-  const sendBtnSize = Math.round(40 * scale);
+  const inputTop = isMobileView ? 18 : Math.round(26 * scale);
+  const inputHeight = isMobileView ? 44 : Math.round(58 * scale);
+  const inputRight = isMobileView ? 62 : Math.round(80 * scale);
+  const inputFontSize = isMobileView ? 14 : Math.max(12, Math.round(16 * scale));
+  const inputPadY = isMobileView ? 0 : Math.max(0, Math.round((inputHeight - inputFontSize) / 2) - 1);
+  const sendBtnSize = isMobileView ? 34 : Math.round(40 * scale);
   const sendBtnTop = Math.round((chatInputHeight - sendBtnSize) / 2);
-  const sendIconSize = Math.round(28 * scale);
+  const sendIconSize = isMobileView ? 22 : Math.round(28 * scale);
 
   const profileBottom = Math.round(70 * scale);
   const profileHeight = Math.round(60 * scale);
@@ -80,6 +83,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [typingDots, setTypingDots] = useState('');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const nextIdRef = useRef(1);
   const isAdmin = (profile?.role || '').toLowerCase() === 'admin';
   const chatHistoryTop = isAdmin ? Math.round(531 * scale) : Math.round(430 * scale);
@@ -107,6 +111,104 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   const [profileView, setProfileView] = useState<'none' | 'profile' | 'edit'>('none');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const chatDisplayRef = useRef<HTMLDivElement>(null);
+
+  const linkifyText = useCallback((value: string, keyPrefix: string): React.ReactNode[] => {
+    const urlRegex = /((?:https?:\/\/|www\.)[^\s<]+)/gi;
+    const nodes: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    let index = 0;
+
+    while ((match = urlRegex.exec(value)) !== null) {
+      const rawMatch = match[0];
+      const start = match.index;
+      const end = start + rawMatch.length;
+
+      if (start > lastIndex) {
+        nodes.push(value.slice(lastIndex, start));
+      }
+
+      let cleanUrl = rawMatch;
+      let trailing = '';
+      while (cleanUrl && /[),.!?:;]$/.test(cleanUrl)) {
+        trailing = cleanUrl.slice(-1) + trailing;
+        cleanUrl = cleanUrl.slice(0, -1);
+      }
+
+      const href = cleanUrl.startsWith('www.') ? `https://${cleanUrl}` : cleanUrl;
+      nodes.push(
+        <a key={`${keyPrefix}-url-${index}`} href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#2b5b9f', textDecoration: 'underline', wordBreak: 'break-all' }}>
+          {cleanUrl}
+        </a>
+      );
+      if (trailing) {
+        nodes.push(trailing);
+      }
+
+      lastIndex = end;
+      index += 1;
+    }
+
+    if (lastIndex < value.length) {
+      nodes.push(value.slice(lastIndex));
+    }
+
+    return nodes;
+  }, []);
+
+  const renderBotMessage = useCallback((text: string) => {
+    const lines = text.split('\n');
+    const nodes: JSX.Element[] = [];
+    let paragraphBuffer: string[] = [];
+    let listBuffer: string[] = [];
+
+    const flushParagraph = () => {
+      if (!paragraphBuffer.length) return;
+      nodes.push(
+        <div key={`p-${nodes.length}`} style={{ whiteSpace: 'pre-wrap' }}>
+          {linkifyText(paragraphBuffer.join('\n'), `p-${nodes.length}`)}
+        </div>
+      );
+      paragraphBuffer = [];
+    };
+
+    const flushList = () => {
+      if (!listBuffer.length) return;
+      nodes.push(
+        <ul
+          key={`ul-${nodes.length}`}
+          style={{
+            margin: '4px 0',
+            paddingLeft: '1.25em',
+            listStyleType: 'disc'
+          }}
+        >
+          {listBuffer.map((item, idx) => (
+            <li key={`li-${idx}`} style={{ margin: '2px 0' }}>
+              {linkifyText(item, `li-${idx}`)}
+            </li>
+          ))}
+        </ul>
+      );
+      listBuffer = [];
+    };
+
+    for (const line of lines) {
+      const bulletMatch = line.match(/^\s*[-•]\s+(.+)$/);
+      if (bulletMatch) {
+        flushParagraph();
+        listBuffer.push(bulletMatch[1]);
+      } else {
+        flushList();
+        paragraphBuffer.push(line);
+      }
+    }
+
+    flushParagraph();
+    flushList();
+
+    return nodes;
+  }, [linkifyText]);
 
   const loadProfileAndFAQ = useCallback(async () => {
     try {
@@ -376,7 +478,9 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh', minHeight: '100vh', overflow: 'hidden', background: 'linear-gradient(to bottom, #f0f6fe, #ffffff)' }}>
-      <div style={{ position: 'absolute', left: 0, top: 0, width: layout.sidebarWidth, height: '100vh', background: '#e4eef8' }} />
+      {!isMobileView && (
+        <>
+      <div style={{ position: 'absolute', left: 0, top: 0, width: sidebarWidth, height: '100vh', background: '#e4eef8' }} />
 
       {/* Logo */}
       <div
@@ -384,7 +488,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
           position: 'absolute',
           left: 0,
           top: logoTop,
-          width: layout.sidebarWidth,
+          width: sidebarWidth,
           height: logoHeight,
           display: 'flex',
           alignItems: 'center',
@@ -560,6 +664,46 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
           )}
         </div>
       </div>
+        </>
+      )}
+
+      {isMobileView && (
+        <div style={{ position: 'absolute', left: 12, right: 12, top: 10, zIndex: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <button onClick={() => setMobileSidebarOpen(true)} style={{ border: 'none', background: '#dfe9f7', color: '#445c94', borderRadius: 8, width: 36, height: 36, fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>≡</button>
+          <img alt="CPE Logo" src={imgLogoCpe} style={{ width: 96, height: 40, objectFit: 'contain' }} />
+          <div style={{ width: 36, height: 36 }} />
+        </div>
+      )}
+
+      {isMobileView && mobileSidebarOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 20, background: 'rgba(0,0,0,0.35)' }} onClick={() => setMobileSidebarOpen(false)}>
+          <div style={{ width: '80vw', maxWidth: 330, height: '100%', background: '#e4eef8', padding: 14, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <img alt="CPE Logo" src={imgLogoCpe} style={{ width: 96, height: 42, objectFit: 'contain' }} />
+              <button onClick={() => setMobileSidebarOpen(false)} style={{ border: 'none', background: 'transparent', color: '#445c94', fontSize: 24, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+            <button onClick={() => { handleNewChat(); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: '#6277ac', padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>New Chat</button>
+            <button onClick={() => { setSelected('ai'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'ai' ? '#000' : '#6277ac', fontWeight: selected === 'ai' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>AI Chat</button>
+            {!isAdmin && <button onClick={() => { setSelected('qa'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'qa' ? '#000' : '#6277ac', fontWeight: selected === 'qa' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>FAQs</button>}
+            {!isAdmin && <button onClick={() => { setSelected('doc'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'doc' ? '#000' : '#6277ac', fontWeight: selected === 'doc' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>Documents</button>}
+            {isAdmin && <button onClick={() => { setSelected('dashboard'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'dashboard' ? '#000' : '#6277ac', fontWeight: selected === 'dashboard' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>Dashboard</button>}
+            {isAdmin && <button onClick={() => { setSelected('admin'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'admin' ? '#000' : '#6277ac', fontWeight: selected === 'admin' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>User Information</button>}
+            {isAdmin && <button onClick={() => { setSelected('manage-doc'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'manage-doc' ? '#000' : '#6277ac', fontWeight: selected === 'manage-doc' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>Manage Docs</button>}
+            <div style={{ marginTop: 12, marginBottom: 6, fontSize: 12, color: '#6277ac' }}>Chat History</div>
+            {threads.length === 0 && <div style={{ fontSize: 12, color: '#9aa4bf', marginBottom: 12 }}>ยังไม่มีประวัติ</div>}
+            {threads.slice(0, 20).map((t) => (
+              <button key={t.id} onClick={() => { handleSelectThread(t.id); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 6, border: 'none', background: 'transparent', color: t.id === activeThreadId ? '#000' : '#6277ac', fontWeight: t.id === activeThreadId ? 600 : 400, padding: '7px 0', fontSize: 12, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {t.title}
+              </button>
+            ))}
+            <div style={{ flex: 1 }} />
+            <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+              <button onClick={() => { openProfile(); setMobileSidebarOpen(false); }} style={{ flex: 1, border: 'none', background: '#fff', color: '#000', borderRadius: 10, padding: '9px 10px', fontSize: 12, cursor: 'pointer' }}>Profile</button>
+              <button onClick={() => { openLogoutConfirm(); setMobileSidebarOpen(false); }} style={{ flex: 1, border: 'none', background: '#6277ac', color: '#fff', borderRadius: 10, padding: '9px 10px', fontSize: 12, cursor: 'pointer' }}>Logout</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selected === 'ai' && (
         <>
@@ -571,7 +715,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
               <>
                 {/* Welcome message (when no active thread or no messages) */}
                 {!hasMessages && (
-                  <div style={{ position: 'absolute', left: contentLeft, right: 40, top: '35%', transform: 'translateY(-50%)', textAlign: 'center', padding: '0 20px' }}>
+                  <div style={{ position: 'absolute', left: contentLeft, right: contentRight, top: '35%', transform: 'translateY(-50%)', textAlign: 'center', padding: '0 20px' }}>
                     <p style={{ margin: 0, color: '#757575', fontSize: 'clamp(32px, 6vw, 70px)', fontWeight: 600, lineHeight: 1.1 }}>Hello</p>
                     <p style={{ margin: 0, fontSize: 'clamp(32px, 6vw, 70px)', fontWeight: 600, lineHeight: 1.1, background: 'linear-gradient(90deg, #faa538 20%, #708ac4 52%, #4960ac 81%)', WebkitBackgroundClip: 'text', color: 'transparent' }}>Welcome to Chat CPE</p>
                   </div>
@@ -579,21 +723,21 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
 
                 {/* Chat display (when messages exist) */}
                 {hasMessages && (
-                  <div ref={chatDisplayRef} style={{ position: 'absolute', left: contentLeft, top: chatDisplayTop, right: 40, bottom: chatDisplayBottom, overflow: 'auto', padding: Math.round(20 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(12 * scale) }}>
+                  <div ref={chatDisplayRef} style={{ position: 'absolute', left: contentLeft, top: chatDisplayTop, right: contentRight, bottom: chatDisplayBottom, overflow: 'auto', padding: Math.round(20 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(12 * scale) }}>
                     {activeThread?.messages.map((msg) => (
                       <div key={msg.id} style={{ marginBottom: 12, display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
                         <div
                           style={{
-                            maxWidth: '60%',
+                            maxWidth: isMobileView ? '82%' : '60%',
                             padding: '10px 12px',
                             borderRadius: 12,
                             background: msg.role === 'user' ? '#e6efff' : '#f4f6fb',
                             color: '#2b2b2b',
-                            whiteSpace: 'pre-wrap',
+                            whiteSpace: msg.role === 'bot' ? 'normal' : 'pre-wrap',
                             wordBreak: 'break-word'
                           }}
                         >
-                          {msg.text}
+                          {msg.role === 'bot' ? renderBotMessage(msg.text) : msg.text}
                         </div>
                       </div>
                     ))}
@@ -621,7 +765,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
             );
           })()}
 
-          <div style={{ position: 'absolute', left: contentLeft, right: 40, bottom: chatInputBottom, height: chatInputHeight }}>
+          <div style={{ position: 'absolute', left: contentLeft, right: contentRight, bottom: chatInputBottom, height: chatInputHeight }}>
             <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid #4960ac', borderRadius: Math.round(15 * scale) }} />
             <input
               disabled={isTyping}
@@ -651,31 +795,31 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
         </>
       )}
       {selected === 'qa' && (
-        <div style={{ position: 'absolute', left: contentLeft, top: faqTop, right: 40, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(16 * scale) }}>
+        <div style={{ position: 'absolute', left: contentLeft, top: faqTop, right: contentRight, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(16 * scale) }}>
           <FAQsAccordion faqs={faqs} />
         </div>
       )}
       {selected === 'doc' && (
-        <div style={{ position: 'absolute', left: contentLeft, top: docTopContent, right: 40, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(24 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
+        <div style={{ position: 'absolute', left: contentLeft, top: docTopContent, right: contentRight, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(24 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
           <DocumentsPage />
         </div>
       )}
       {selected === 'admin' && isAdmin && (
-        <div style={{ position: 'absolute', left: contentLeft, top: docTopContent, right: 40, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(24 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
+        <div style={{ position: 'absolute', left: contentLeft, top: docTopContent, right: contentRight, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(24 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
           <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px' }}>Loading...</div>}>
             <AdminDashboard view="information" />
           </Suspense>
         </div>
       )}
       {selected === 'dashboard' && isAdmin && (
-        <div style={{ position: 'absolute', left: contentLeft, top: docTopContent, right: 40, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(24 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
+        <div style={{ position: 'absolute', left: contentLeft, top: docTopContent, right: contentRight, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(24 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
           <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px' }}>Loading...</div>}>
             <AdminDashboard view="dashboard" />
           </Suspense>
         </div>
       )}
       {selected === 'manage-doc' && isAdmin && (
-        <div style={{ position: 'absolute', left: contentLeft, top: docTopContent, right: 40, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(24 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
+        <div style={{ position: 'absolute', left: contentLeft, top: docTopContent, right: contentRight, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(24 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
           <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px' }}>Loading...</div>}>
             <ManageDocumentPage />
           </Suspense>
@@ -683,6 +827,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       )}
 
       {/* Profile Section */}
+      {!isMobileView && (
       <div style={{ position: 'absolute', left: sidebarLeftPadding, bottom: profileBottom, width: sidebarInnerWidth, height: profileHeight, background: '#d4e2f4', borderRadius: Math.round(12 * scale), display: 'flex', alignItems: 'center', padding: `${Math.round(8 * scale)}px ${Math.round(12 * scale)}px`, gap: Math.round(12 * scale) }}>
         {/* Profile Avatar */}
         <div style={{ width: Math.round(44 * scale), height: Math.round(44 * scale), borderRadius: '50%', background: '#6277ac', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: Math.max(12, Math.round(18 * scale)), fontWeight: 600 }}>
@@ -722,8 +867,10 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
           </svg>
         </button>
       </div>
+      )}
 
       {/* Logout Button */}
+      {!isMobileView && (
       <button 
         onClick={openLogoutConfirm}
         style={{ 
@@ -746,6 +893,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
         <img src={imgLogout} alt="Logout" style={{ width: Math.round(18 * scale), height: Math.round(18 * scale) }} />
         <span style={{ color: '#6277ac', fontSize: Math.max(11, Math.round(14 * scale)), fontWeight: 500 }}>Logout</span>
       </button>
+      )}
 
       <Suspense fallback={null}>
         {profileView === 'profile' && (
