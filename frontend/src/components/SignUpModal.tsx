@@ -71,9 +71,7 @@ function SignUpModal({ open, onBackToSignIn }: Props) {
 
   const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
   const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
-  const modalScale = layout.isMobile
-    ? Math.min((viewportWidth - 24) / 750, (viewportHeight - 24) / 620, 1)
-    : 1;
+  const modalScale = Math.max(0.55, Math.min((viewportWidth - 24) / 750, (viewportHeight - 24) / 620, 1));
 
   const handleSignUp = async () => {
     if (!name || !email || !password || !confirmPassword) {
@@ -100,7 +98,7 @@ function SignUpModal({ open, onBackToSignIn }: Props) {
   if (layout.isMobile) {
     return (
       <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
-        <div style={{ width: '100%', maxWidth: 380, borderRadius: 16, background: 'linear-gradient(to bottom, #f0f6fe, #ffffff)', boxShadow: '5px 5px 10px rgba(0,0,0,0.25)', padding: '16px 14px 18px', boxSizing: 'border-box' }}>
+        <div className="auth-modal-content" style={{ width: '100%', maxWidth: 380, borderRadius: 16, background: 'linear-gradient(to bottom, #f0f6fe, #ffffff)', boxShadow: '5px 5px 10px rgba(0,0,0,0.25)', padding: '16px 14px 18px', boxSizing: 'border-box' }}>
           <button
             onClick={onBackToSignIn}
             aria-label="Back to Sign in"
@@ -205,13 +203,12 @@ function SignUpModal({ open, onBackToSignIn }: Props) {
   }
 
   return (
-    <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 1000 }}>
+    <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, boxSizing: 'border-box' }}>
       <div
+        className="auth-modal-content"
         style={{
-          position: 'absolute',
-          left: '50%',
-          top: '50%',
-          transform: `translate(-50%, -50%) scale(${modalScale})`,
+          position: 'relative',
+          transform: `scale(${modalScale})`,
           transformOrigin: 'center center',
           width: 750,
           height: 620,

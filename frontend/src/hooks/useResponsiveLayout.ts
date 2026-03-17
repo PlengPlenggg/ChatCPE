@@ -17,7 +17,10 @@ export interface ResponsiveLayout {
 }
 
 export const useResponsiveLayout = (): ResponsiveLayout => {
-  const isMobile = useMediaQuery({ maxWidth: 767 });
+  const isNarrowWidth = useMediaQuery({ maxWidth: 767 });
+  const isCoarsePointer = useMediaQuery({ query: '(pointer: coarse)' });
+  const isNoHover = useMediaQuery({ query: '(hover: none)' });
+  const isMobile = isNarrowWidth && (isCoarsePointer || isNoHover);
   const isTablet = useMediaQuery({ minWidth: 768, maxWidth: 1023 });
   const isLaptop = useMediaQuery({ minWidth: 1024, maxWidth: 1199 });
   const isDesktop = useMediaQuery({ minWidth: 1200 });
@@ -92,6 +95,23 @@ export const useResponsiveLayout = (): ResponsiveLayout => {
       };
     }
 
+    if (isNarrowWidth && !isMobile) {
+      return {
+        isMobile: false,
+        isTablet: false,
+        isDesktop: false,
+        minHeight: 680,
+        mainPaddingLeft: 20,
+        sidebarWidth: 220,
+        sidebarHeight: '100vh',
+        contentWidth: 'calc(100% - 220px)',
+        modalWidth: 680,
+        modalHeight: 520,
+        inputWidth: 460,
+        fontSize: 13,
+      };
+    }
+
     return {
       isMobile,
       isTablet: false,
@@ -106,7 +126,7 @@ export const useResponsiveLayout = (): ResponsiveLayout => {
       inputWidth: 'calc(95vw - 40px)',
       fontSize: 12,
     };
-  }, [isDesktop, isLaptop, isMobile, isTablet, isWideDesktop]);
+  }, [isDesktop, isLaptop, isMobile, isNarrowWidth, isTablet, isWideDesktop]);
 };
 
 export const useModalDimensions = () => {

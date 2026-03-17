@@ -66,10 +66,22 @@ function SignInButton({ style, onClick }: { style?: React.CSSProperties; onClick
           transition: 'background 120ms ease'
         }}
       />
-      <div style={{ position: 'absolute', left: '47.46%', right: '30.93%', top: '25%', bottom: '27.27%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontSize: 16 }}>
-        Sign in
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+          padding: '0 12px'
+        }}
+      >
+        <LogIn style={{ width: 18, height: 18, overflow: 'hidden', flexShrink: 0 }} />
+        <span style={{ color: '#000', fontSize: 16, whiteSpace: 'nowrap', lineHeight: 1 }}>
+          Sign in
+        </span>
       </div>
-      <LogIn style={{ position: 'absolute', left: '30.93%', right: '61.44%', top: '27.27%', bottom: '31.82%', overflow: 'hidden' }} />
     </button>
   );
 }
@@ -77,18 +89,22 @@ function SignInButton({ style, onClick }: { style?: React.CSSProperties; onClick
 export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
   const layout = useResponsiveLayout();
   const isMobileView = layout.isMobile;
+  const isCompactSidebar = layout.isMobile || layout.isTablet;
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+  const compactSidebarWidth = Math.max(260, Math.min(320, Math.round(viewportWidth * 0.78)));
   
   // Calculate responsive positions based on layout
-  const sidebarWidth = isMobileView ? 0 : Math.max(layout.sidebarWidth, 240);
-  const contentLeft = isMobileView ? 12 : sidebarWidth + 35;
-  const sidebarLeftPadding = Math.round(Math.max(12, sidebarWidth * 0.08));
-  const iconLeft = Math.round(Math.max(24, sidebarWidth * 0.25));
-  const labelLeft = Math.round(Math.max(70, sidebarWidth * 0.38));
+  const sidebarWidth = isCompactSidebar ? compactSidebarWidth : Math.max(layout.sidebarWidth, 240);
+  const visualSidebarWidth = isCompactSidebar ? Math.min(sidebarWidth, Math.round(viewportWidth * 0.82)) : sidebarWidth;
+  const contentLeft = isCompactSidebar ? 12 : sidebarWidth + 35;
+  const sidebarLeftPadding = Math.round(Math.max(12, visualSidebarWidth * 0.08));
+  const iconLeft = Math.round(Math.max(24, visualSidebarWidth * 0.25));
+  const labelLeft = Math.round(Math.max(70, visualSidebarWidth * 0.38));
   const chatDisplayLeft = contentLeft;
-  const chatDisplayRight = isMobileView ? 12 : 40;
-  const contentTopOffset = isMobileView ? 94 : 120;
-  const contentBottomOffset = isMobileView ? 108 : 150;
-  const inputBottomOffset = isMobileView ? 12 : 30;
+  const chatDisplayRight = isCompactSidebar ? 12 : 40;
+  const contentTopOffset = isMobileView ? 68 : isCompactSidebar ? 84 : 86;
+  const contentBottomOffset = isCompactSidebar ? 108 : 150;
+  const inputBottomOffset = isCompactSidebar ? 12 : 30;
   
   const [modal, setModal] = useState<'none' | 'signin' | 'signup' | 'forgotpassword'>('none');
   const [userManagementOpen, setUserManagementOpen] = useState(false);
@@ -305,7 +321,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
         </>
       )}
 
-      {!isMobileView && (
+      {!isCompactSidebar && (
         <>
           {/* Left sidebar */}
           <div style={{ position: 'absolute', left: 0, top: 0, width: sidebarWidth, height: '100vh', background: '#e4eef8' }} />
@@ -378,7 +394,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
         </>
       )}
 
-      {isMobileView && (
+      {isCompactSidebar && (
         <div style={{ position: 'absolute', left: 12, right: 12, top: 10, zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button onClick={() => setMobileSidebarOpen(true)} style={{ border: 'none', background: '#dfe9f7', color: '#445c94', borderRadius: 8, width: 36, height: 36, fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>≡</button>
           <img alt="CPE Logo" src={imgLogoCpe} style={{ width: 96, height: 40, objectFit: 'contain' }} />
@@ -386,19 +402,47 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
         </div>
       )}
 
-      {isMobileView && mobileSidebarOpen && (
+      {isCompactSidebar && mobileSidebarOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 20, background: 'rgba(0,0,0,0.35)' }} onClick={() => setMobileSidebarOpen(false)}>
-          <div style={{ width: '78vw', maxWidth: 320, height: '100%', background: '#e4eef8', padding: 14, boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <img alt="CPE Logo" src={imgLogoCpe} style={{ width: 96, height: 42, objectFit: 'contain' }} />
-              <button onClick={() => setMobileSidebarOpen(false)} style={{ border: 'none', background: 'transparent', color: '#445c94', fontSize: 24, cursor: 'pointer', lineHeight: 1 }}>×</button>
+          <div style={{ position: 'relative', width: visualSidebarWidth, height: '100%', background: '#e4eef8' }} onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setMobileSidebarOpen(false)} style={{ position: 'absolute', right: 12, top: 12, border: 'none', background: 'transparent', color: '#445c94', fontSize: 24, cursor: 'pointer', lineHeight: 1, zIndex: 2 }}>×</button>
+
+            <div style={{ position: 'absolute', left: 0, top: 12, width: visualSidebarWidth, height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+              <img alt="CPE Logo" src={imgLogoCpe} style={{ maxWidth: '70%', maxHeight: '100%', objectFit: 'contain' }} />
             </div>
-            <button onClick={() => { handleNewChat(); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: '#6277ac', padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>New Chat</button>
-            <button onClick={() => { setSelected('ai'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'ai' ? '#000' : '#6277ac', fontWeight: selected === 'ai' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>AI Chat</button>
-            <button onClick={() => { setSelected('qa'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'qa' ? '#000' : '#6277ac', fontWeight: selected === 'qa' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>FAQs</button>
-            <button onClick={() => { setSelected('doc'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'doc' ? '#000' : '#6277ac', fontWeight: selected === 'doc' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>Document</button>
-            <div style={{ flex: 1 }} />
-            <button onClick={() => { openSignIn(); setMobileSidebarOpen(false); }} style={{ width: '100%', marginTop: 10, border: 'none', background: '#fff', color: '#000', borderRadius: 10, padding: '10px 12px', fontSize: 14, cursor: 'pointer', textAlign: 'left' }}>Sign in</button>
+
+            <div style={{ position: 'absolute', left: sidebarLeftPadding, top: 233, width: visualSidebarWidth - (sidebarLeftPadding * 2), height: 1 }}>
+              <img alt="" src={imgLine1} style={{ display: 'block', width: '100%', height: '100%' }} />
+            </div>
+
+            <div style={{ position: 'absolute', left: sidebarLeftPadding, top: highlightTop, width: visualSidebarWidth - (sidebarLeftPadding * 2), height: 44, borderRadius: 10, background: '#7587b8', transition: 'top 0.25s' }} />
+            <div style={{ position: 'absolute', left: sidebarLeftPadding + 6, top: highlightTop, width: visualSidebarWidth - (sidebarLeftPadding * 2) - 12, height: 44, borderRadius: 10, background: '#fff', transition: 'top 0.25s' }} />
+
+            <button onClick={() => { handleNewChat(); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: 68, top: 183.83, width: 24, height: 24, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+              <div style={{ position: 'absolute', inset: '5% 10% 5% 10%' }}>
+                <div style={{ position: 'absolute', inset: '-5%' }}>
+                  <img alt="New chat" src={imgNewChat} style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain', opacity: 0.9 }} />
+                </div>
+              </div>
+            </button>
+            <button onClick={() => { handleNewChat(); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: 109.47, top: 196.31, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, whiteSpace: 'nowrap' }}>New Chat</button>
+
+            <button onClick={() => { setSelected('ai'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: iconLeft, top: 266, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+              <div style={{ position: 'absolute', inset: '12.5%' }}><div style={{ position: 'absolute', inset: '-5.93%' }}><img alt="" src={img3} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'ai' ? 'brightness(0) saturate(100%)' : 'brightness(0) saturate(100%) invert(46%) sepia(10%) saturate(842%) hue-rotate(178deg) brightness(94%) contrast(87%)' }} /></div></div>
+            </button>
+            <button onClick={() => { setSelected('ai'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: labelLeft, top: 275.48, transform: 'translateY(-50%)', color: selected === 'ai' ? '#000' : '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>AI Chat</button>
+
+            <button onClick={() => { setSelected('qa'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: iconLeft, top: 319, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+              <div style={{ position: 'absolute', inset: '8.33% 8.33% 12.42% 8.33%' }}><div style={{ position: 'absolute', inset: '-5.61% -5.33%' }}><img alt="" src={img2} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'qa' ? 'brightness(0) saturate(100%)' : 'none' }} /></div></div>
+            </button>
+            <button onClick={() => { setSelected('qa'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: labelLeft, top: 328.48, transform: 'translateY(-50%)', color: selected === 'qa' ? '#000' : '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>FAQs</button>
+
+            <button onClick={() => { setSelected('doc'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: iconLeft, top: 372, width: 18, height: 18, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+              <div style={{ position: 'absolute', inset: '5.78% 10.67% 8.34% 8.34%' }}><div style={{ position: 'absolute', inset: '-5.18% -5.49%' }}><img alt="" src={img1} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'doc' ? 'brightness(0) saturate(100%)' : 'none' }} /></div></div>
+            </button>
+            <button onClick={() => { setSelected('doc'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: labelLeft, top: 381.48, transform: 'translateY(-50%)', color: selected === 'doc' ? '#000' : '#6277ac', fontSize: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Document</button>
+
+            <SignInButton onClick={() => { openSignIn(); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 24, width: Math.max(168, visualSidebarWidth - 32) }} />
           </div>
         </div>
       )}
@@ -454,7 +498,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
 
       {/* Search bar and send button (only on AI) */}
       {selected === 'ai' && (
-        <div style={{ position: 'absolute', left: chatDisplayLeft, right: chatDisplayRight, bottom: inputBottomOffset, height: isMobileView ? 84 : 96 }}>
+        <div style={{ position: 'absolute', left: chatDisplayLeft, right: chatDisplayRight, bottom: inputBottomOffset, height: isCompactSidebar ? 84 : 96 }}>
           <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid #4960ac', borderRadius: 15 }} />
           <input
             disabled={isTyping}
@@ -464,21 +508,26 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
               if (e.key === 'Enter' && !isTyping) handleSend();
             }}
             placeholder="พิมพ์ข้อความที่นี่..."
-            style={{ position: 'absolute', left: 16, top: isMobileView ? 18 : 26, right: 72, height: isMobileView ? 46 : 58, border: 'none', outline: 'none', fontSize: isMobileView ? 14 : 16, lineHeight: 'normal', paddingTop: isMobileView ? 12 : 20, paddingBottom: isMobileView ? 12 : 20, background: 'transparent', opacity: isTyping ? 0.6 : 1, cursor: isTyping ? 'not-allowed' : 'text' }}
+            style={{ position: 'absolute', left: 16, top: isCompactSidebar ? 18 : 26, right: 72, height: isCompactSidebar ? 46 : 58, border: 'none', outline: 'none', fontSize: isCompactSidebar ? 14 : 16, lineHeight: 'normal', paddingTop: isCompactSidebar ? 12 : 20, paddingBottom: isCompactSidebar ? 12 : 20, background: 'transparent', opacity: isTyping ? 0.6 : 1, cursor: isTyping ? 'not-allowed' : 'text' }}
           />
           <button
             disabled={isTyping}
             onClick={handleSend}
-            style={{ position: 'absolute', right: 16, top: isMobileView ? 24 : 28, width: isMobileView ? 34 : 40, height: isMobileView ? 34 : 40, borderRadius: 100, background: '#7587b8', border: 'none', cursor: isTyping ? 'not-allowed' : 'pointer', opacity: isTyping ? 0.6 : 1 }}
+            style={{ position: 'absolute', right: 16, top: isCompactSidebar ? 24 : 28, width: isCompactSidebar ? 34 : 40, height: isCompactSidebar ? 34 : 40, borderRadius: 100, background: '#7587b8', border: 'none', cursor: isTyping ? 'not-allowed' : 'pointer', opacity: isTyping ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             aria-label="Send"
-          />
-          <div style={{ position: 'absolute', right: isMobileView ? 22 : 26, top: isMobileView ? 30 : 34, width: isMobileView ? 21 : 27.586, height: isMobileView ? 21 : 27.586, overflow: 'hidden', pointerEvents: 'none' }}>
-            <div style={{ position: 'absolute', inset: '20.83%' }}>
-              <div style={{ position: 'absolute', inset: '-7.77%' }}>
-                <img alt="" src={img} style={{ display: 'block', width: '100%', height: '100%' }} />
-              </div>
-            </div>
-          </div>
+          >
+            <img
+              alt=""
+              src={img}
+              style={{
+                display: 'block',
+                width: isCompactSidebar ? 18 : 22,
+                height: isCompactSidebar ? 18 : 22,
+                objectFit: 'contain',
+                pointerEvents: 'none'
+              }}
+            />
+          </button>
         </div>
       )}
 
@@ -490,7 +539,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
       )}
 
       {selected === 'doc' && (
-        <div style={{ position: 'absolute', left: chatDisplayLeft, top: contentTopOffset, right: chatDisplayRight, bottom: inputBottomOffset, overflow: 'auto', padding: isMobileView ? 14 : 24, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 16 }}>
+        <div style={{ position: 'absolute', left: chatDisplayLeft, top: contentTopOffset, right: chatDisplayRight, bottom: inputBottomOffset, overflow: 'auto', padding: isCompactSidebar ? 14 : 24, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 16 }}>
           <DocumentsPage />
         </div>
       )}
@@ -499,7 +548,18 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
       {/* <LogOut style={{ position: 'absolute', left: 341, top: 499, width: 18, height: 18, overflow: 'hidden' }} /> */}
 
       {/* Sign In trigger */}
-      {!isMobileView && <SignInButton onClick={openSignIn} style={{ position: 'absolute', left: 25, bottom: 30 }} />}
+      {!isCompactSidebar && (
+        <SignInButton
+          onClick={openSignIn}
+          style={{
+            position: 'absolute',
+            left: Math.round(sidebarWidth / 2),
+            transform: 'translateX(-50%)',
+            bottom: 30,
+            width: Math.max(168, sidebarWidth - 32)
+          }}
+        />
+      )}
 
       <Suspense fallback={null}>
         {modal === 'signin' && (

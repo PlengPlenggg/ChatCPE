@@ -10,23 +10,64 @@ type ApiError = {
   };
 };
 
+type RequestOptions = RequestInit & {
+  timeoutMs?: number;
+};
+
 const getAuthHeaders = (): HeadersInit => {
   const token = localStorage.getItem('access_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+async function request<T>(path: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
+  const { timeoutMs = 15000, signal: externalSignal, ...requestOptions } = options;
   const authHeaders = getAuthHeaders();
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...authHeaders,
-    ...(options.headers || {})
+    ...(requestOptions.headers || {})
   };
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers
-  });
+  const controller = new AbortController();
+  let didTimeout = false;
+  const timeoutId = setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, timeoutMs);
+
+  const onExternalAbort = () => controller.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort();
+    } else {
+      externalSignal.addEventListener('abort', onExternalAbort, { once: true });
+    }
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...requestOptions,
+      headers,
+      signal: controller.signal
+    });
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      const abortError: ApiError = {
+        response: {
+          data: { detail: didTimeout ? 'Request timeout' : 'Request canceled' },
+          status: 0
+        }
+      };
+      throw abortError;
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+    if (externalSignal) {
+      externalSignal.removeEventListener('abort', onExternalAbort);
+    }
+  }
 
   const isJson = response.headers.get('content-type')?.includes('application/json');
   const payload = isJson ? await response.json() : null;
@@ -98,9 +139,11 @@ export const authAPI = {
       method: 'POST'
     });
   },
-  getUsers() {
+  getUsers(signal?: AbortSignal, timeoutMs: number = 20000) {
     return request<any[]>('/auth/users', {
-      method: 'GET'
+      method: 'GET',
+      signal,
+      timeoutMs
     });
   }
 };
@@ -136,7 +179,7 @@ export const chatAPI = {
       method: 'DELETE'
     });
   },
-  getAdminAnalytics(days?: number) {
+  getAdminAnalytics(days?: number, signal?: AbortSignal, timeoutMs: number = 45000) {
     const query = typeof days === 'number' ? `?days=${days}` : '';
     return request<{
       total_questions: number;
@@ -150,8 +193,33 @@ export const chatAPI = {
       generated_at: string;
       applied_range_days?: number | null;
     }>(`/chat/analytics${query}`, {
-      method: 'GET'
+      method: 'GET',
+      signal,
+      timeoutMs
     });
+  },
+  async exportChatLogsCsv(days?: number) {
+    const query = typeof days === 'number' ? `?days=${days}` : '';
+    const response = await fetch(`${API_BASE_URL}/chat/analytics/export-csv${query}`, {
+      method: 'GET',
+      headers: {
+        ...getAuthHeaders()
+      }
+    });
+
+    if (!response.ok) {
+      const isJson = response.headers.get('content-type')?.includes('application/json');
+      const payload = isJson ? await response.json() : null;
+      const err: ApiError = {
+        response: {
+          data: payload || { detail: response.statusText },
+          status: response.status
+        }
+      };
+      throw err;
+    }
+
+    return response.blob();
   }
 };
 

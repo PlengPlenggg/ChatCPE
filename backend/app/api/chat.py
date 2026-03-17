@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 import requests
 import uuid
 from datetime import datetime, timedelta
 from collections import Counter
+import csv
+import io
 import re
 import time
 import asyncio
@@ -549,4 +552,84 @@ async def get_chat_analytics(
         }
     except Exception as e:
         logger.error(f"Error getting chat analytics: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/analytics/export-csv")
+async def export_chat_logs_csv(
+    db: Session = Depends(get_db),
+    days: Optional[int] = Query(default=None, ge=1, le=365),
+    current_user: User = Depends(require_roles(["admin"]))
+):
+    """
+    Export คำถาม-คำตอบของผู้ใช้ทั้งหมด (ที่บันทึกในระบบ) เป็น CSV
+    รองรับ filter ช่วงวันย้อนหลังด้วย query param `days`
+    """
+    try:
+        def normalize_text(value: Optional[str]) -> str:
+            if not value:
+                return ""
+            # Flatten line breaks/tabs to keep row heights compact in Excel.
+            cleaned = re.sub(r"[\r\n\t]+", " ", value)
+            cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+            return cleaned
+
+        def safe_csv_cell(value: Optional[str]) -> str:
+            text = normalize_text(value)
+            # Prevent Excel from interpreting content as formula (#NAME?, CSV injection, etc.).
+            if text.startswith(("=", "+", "-", "@")):
+                return f"'{text}"
+            return text
+
+        query = (
+            db.query(Chat, User, Answer)
+            .outerjoin(User, Chat.user_id == User.id)
+            .outerjoin(Answer, Answer.chat_id == Chat.id)
+        )
+
+        if days is not None:
+            cutoff = datetime.utcnow() - timedelta(days=days)
+            query = query.filter(Chat.created_at >= cutoff)
+
+        rows = query.order_by(Chat.created_at.desc(), Answer.created_at.asc()).all()
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        writer.writerow([
+            "user_id",
+            "user_name",
+            "user_email",
+            "question",
+            "answer"
+        ])
+
+        def to_utc_iso(value: Optional[datetime]) -> str:
+            if not value:
+                return ""
+            return value.replace(microsecond=0).isoformat() + "Z"
+
+        for chat, user, answer in rows:
+            writer.writerow([
+                chat.user_id or "",
+                safe_csv_cell(user.name if user else ""),
+                safe_csv_cell(user.email if user else ""),
+                safe_csv_cell(chat.message),
+                safe_csv_cell(answer.answer if answer else "")
+            ])
+
+        # Prefix UTF-8 BOM so Excel on Windows detects Thai text correctly.
+        content = "\ufeff" + output.getvalue()
+        output.close()
+
+        generated = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        filename = f"chat_logs_{generated}.csv"
+
+        return StreamingResponse(
+            iter([content]),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        logger.error(f"Error exporting chat logs csv: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

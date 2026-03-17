@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { authAPI, chatAPI } from '../services/api';
 
 type User = {
@@ -12,7 +12,7 @@ type User = {
 
 type AdminDashboardProps = {
   height?: number | string;
-  view?: 'dashboard' | 'information' | 'all';
+  view?: 'dashboard' | 'information' | 'admin-info' | 'all';
 };
 
 type ChatAnalytics = {
@@ -29,6 +29,7 @@ type ChatAnalytics = {
 };
 
 export default function AdminDashboard({ height = 'auto', view = 'all' }: AdminDashboardProps) {
+  const REFRESH_INTERVAL_MS = 60 * 60 * 1000;
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,13 +44,24 @@ export default function AdminDashboard({ height = 'auto', view = 'all' }: AdminD
   const [analytics, setAnalytics] = useState<ChatAnalytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const usersRequestSeq = useRef(0);
+  const analyticsRequestSeq = useRef(0);
   const showDashboard = view === 'dashboard' || view === 'all';
   const showInformation = view === 'information' || view === 'all';
+  const showAdminInfo = view === 'admin-info';
   const filteredUsers = useMemo(() => {
     const now = Date.now();
-    return users.filter((user) => {
-      const nameMatched = user.name.toLowerCase().includes(searchName.trim().toLowerCase());
-      const roleMatched = roleFilter === 'all' ? true : user.role === roleFilter;
+    const baseUsers = view === 'information'
+      ? users.filter(u => u.role !== 'admin')
+      : users;
+    return baseUsers.filter((user) => {
+      const searchTerm = searchName.trim().toLowerCase();
+      const textMatched =
+        searchTerm.length === 0 ||
+        user.name.toLowerCase().includes(searchTerm) ||
+        user.email.toLowerCase().includes(searchTerm);
+      const roleMatched = view === 'information' ? true : (roleFilter === 'all' ? true : user.role === roleFilter);
 
       let activityMatched = true;
       const lastActive = user.last_active_at ? new Date(user.last_active_at).getTime() : null;
@@ -65,10 +77,11 @@ export default function AdminDashboard({ height = 'auto', view = 'all' }: AdminD
         activityMatched = !lastActive || (ageDays !== null && ageDays > 60);
       }
 
-      return nameMatched && roleMatched && activityMatched;
+      return textMatched && roleMatched && activityMatched;
     });
-  }, [users, searchName, roleFilter, activityFilter]);
+  }, [users, searchName, roleFilter, activityFilter, view]);
 
+  const adminUsers = useMemo(() => users.filter(u => u.role === 'admin'), [users]);
   const usersPerPage = 10;
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
   const paginatedUsers = useMemo(() => {
@@ -76,17 +89,10 @@ export default function AdminDashboard({ height = 'auto', view = 'all' }: AdminD
     return filteredUsers.slice(start, start + usersPerPage);
   }, [filteredUsers, currentPage]);
 
-  useEffect(() => {
-    if (showInformation) {
-      loadUsers();
-    }
-  }, [showInformation]);
-
-  useEffect(() => {
-    if (showDashboard) {
-      loadAnalytics(dashboardRange);
-    }
-  }, [showDashboard, dashboardRange]);
+  const isRequestAbort = (err: any) => {
+    const detail = err?.response?.data?.detail;
+    return detail === 'Request canceled' || err?.name === 'AbortError';
+  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -100,36 +106,142 @@ export default function AdminDashboard({ height = 'auto', view = 'all' }: AdminD
 
   const formatDateTime = (value?: string | null) => {
     if (!value) return 'Never';
-    const date = new Date(value);
+    const hasTimezone = /(?:Z|[+-]\d{2}:\d{2})$/.test(value);
+    const normalizedValue = hasTimezone ? value : `${value}Z`;
+    const date = new Date(normalizedValue);
     if (Number.isNaN(date.getTime())) return 'Invalid date';
     return date.toLocaleString();
   };
 
-  const loadUsers = async () => {
-    setLoading(true);
-    setError(null);
+  const loadUsers = useCallback(async (options: { silent?: boolean; signal?: AbortSignal } = {}) => {
+    const { silent = false, signal } = options;
+    const requestId = ++usersRequestSeq.current;
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
-      const response = await authAPI.getUsers();
+      const response = await authAPI.getUsers(signal);
+      if (requestId !== usersRequestSeq.current) return;
       setUsers(response.data);
+      if (!silent) {
+        setError(null);
+      }
     } catch (err: any) {
+      if (requestId !== usersRequestSeq.current || isRequestAbort(err)) return;
       setError(err.response?.data?.detail || 'Failed to load users');
     } finally {
-      setLoading(false);
+      if (requestId === usersRequestSeq.current && !silent) {
+        setLoading(false);
+      }
     }
-  };
+  }, []);
 
-  const loadAnalytics = async (range: '7' | '30' | '90' | 'all') => {
-    setAnalyticsLoading(true);
-    setAnalyticsError(null);
+  const loadAnalytics = useCallback(async (
+    range: '7' | '30' | '90' | 'all',
+    options: { silent?: boolean; signal?: AbortSignal } = {}
+  ) => {
+    const { silent = false, signal } = options;
+    const requestId = ++analyticsRequestSeq.current;
+    if (!silent) {
+      setAnalyticsLoading(true);
+      setAnalyticsError(null);
+    }
     try {
-      const response = await chatAPI.getAdminAnalytics(range === 'all' ? undefined : Number(range));
+      const response = await chatAPI.getAdminAnalytics(range === 'all' ? undefined : Number(range), signal);
+      if (requestId !== analyticsRequestSeq.current) return;
       setAnalytics(response.data);
+      setAnalyticsError(null);
     } catch (err: any) {
+      if (requestId !== analyticsRequestSeq.current || isRequestAbort(err)) return;
       setAnalyticsError(err.response?.data?.detail || 'Failed to load chat analytics');
     } finally {
-      setAnalyticsLoading(false);
+      if (requestId === analyticsRequestSeq.current && !silent) {
+        setAnalyticsLoading(false);
+      }
     }
-  };
+  }, []);
+
+  const handleExportCsv = useCallback(async () => {
+    setExportingCsv(true);
+    try {
+      const days = dashboardRange === 'all' ? undefined : Number(dashboardRange);
+      const blob = await chatAPI.exportChatLogsCsv(days);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const suffix = dashboardRange === 'all' ? 'all' : `${dashboardRange}d`;
+      link.href = url;
+      link.download = `chat_logs_${suffix}_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setAnalyticsError(err.response?.data?.detail || 'Failed to export CSV');
+    } finally {
+      setExportingCsv(false);
+    }
+  }, [dashboardRange]);
+
+  useEffect(() => {
+    if (!(showInformation || showAdminInfo)) return;
+    const controller = new AbortController();
+    loadUsers({ signal: controller.signal });
+    return () => controller.abort();
+  }, [showInformation, showAdminInfo, loadUsers]);
+
+  useEffect(() => {
+    if (!showDashboard) return;
+    const controller = new AbortController();
+    loadAnalytics(dashboardRange, { signal: controller.signal });
+    return () => controller.abort();
+  }, [showDashboard, dashboardRange, loadAnalytics]);
+
+  useEffect(() => {
+    if (!(showInformation || showAdminInfo)) return;
+    const intervalId = window.setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      loadUsers({ silent: true });
+    }, REFRESH_INTERVAL_MS);
+    return () => window.clearInterval(intervalId);
+  }, [showInformation, showAdminInfo, loadUsers]);
+
+  useEffect(() => {
+    if (!showDashboard) return;
+    const intervalId = window.setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      loadAnalytics(dashboardRange, { silent: true });
+    }, REFRESH_INTERVAL_MS);
+    return () => window.clearInterval(intervalId);
+  }, [showDashboard, dashboardRange, loadAnalytics]);
+
+  useEffect(() => {
+    const handleForegroundRefresh = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      if (showDashboard) {
+        loadAnalytics(dashboardRange, { silent: true });
+      }
+      if (showInformation || showAdminInfo) {
+        loadUsers({ silent: true });
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleForegroundRefresh);
+    }
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleForegroundRefresh);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', handleForegroundRefresh);
+      }
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleForegroundRefresh);
+      }
+    };
+  }, [showDashboard, showInformation, showAdminInfo, dashboardRange, loadAnalytics, loadUsers]);
 
   const handleDeleteUser = async (userId: number, userEmail: string) => {
     if (!notifiedUsers[userId]) {
@@ -144,7 +256,7 @@ export default function AdminDashboard({ height = 'auto', view = 'all' }: AdminD
     setDeleting(userId);
     try {
       await authAPI.deleteUser(userId);
-      setUsers(users.filter(u => u.id !== userId));
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
       setNotifiedUsers((prev) => {
         const next = { ...prev };
         delete next[userId];
@@ -178,7 +290,7 @@ export default function AdminDashboard({ height = 'auto', view = 'all' }: AdminD
       padding: '0'
     }}>
       <h2 style={{ marginTop: 0, color: '#4960ac', marginBottom: '20px' }}>
-        {view === 'dashboard' ? 'Dashboard' : view === 'information' ? 'User Information' : 'User Management'}
+        {view === 'dashboard' ? 'Dashboard' : view === 'information' ? 'User Information' : view === 'admin-info' ? 'Admin Information' : 'User Management'}
       </h2>
 
       {showDashboard && (
@@ -187,6 +299,26 @@ export default function AdminDashboard({ height = 'auto', view = 'all' }: AdminD
           <h3 style={{ margin: 0, color: '#4960ac' }}>
             AI Usage Dashboard
           </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={exportingCsv}
+            style={{
+              height: '34px',
+              borderRadius: '8px',
+              border: '1px solid #d7e2f3',
+              padding: '0 12px',
+              color: '#2f3f72',
+              background: '#fff',
+              fontSize: '13px',
+              cursor: exportingCsv ? 'not-allowed' : 'pointer',
+              opacity: exportingCsv ? 0.7 : 1,
+              fontWeight: 600
+            }}
+          >
+            {exportingCsv ? 'Exporting...' : 'Export CSV'}
+          </button>
           <select
             value={dashboardRange}
             onChange={(e) => setDashboardRange(e.target.value as '7' | '30' | '90' | 'all')}
@@ -205,6 +337,7 @@ export default function AdminDashboard({ height = 'auto', view = 'all' }: AdminD
             <option value="90">ย้อนหลัง 90 วัน</option>
             <option value="all">ทั้งหมด</option>
           </select>
+          </div>
         </div>
 
         {analyticsError && (
@@ -380,7 +513,7 @@ export default function AdminDashboard({ height = 'auto', view = 'all' }: AdminD
             type="text"
             value={searchName}
             onChange={(e) => setSearchName(e.target.value)}
-            placeholder="Search by name..."
+            placeholder="Search by name or email..."
             style={{
               width: '100%',
               maxWidth: '320px',
@@ -392,6 +525,7 @@ export default function AdminDashboard({ height = 'auto', view = 'all' }: AdminD
               background: '#fff'
             }}
           />
+          {view !== 'information' && (
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value as 'all' | 'admin' | 'staff' | 'user')}
@@ -408,6 +542,7 @@ export default function AdminDashboard({ height = 'auto', view = 'all' }: AdminD
             <option value="admin">Admin</option>
             <option value="user">User</option>
           </select>
+          )}
           <select
             value={activityFilter}
             onChange={(e) => setActivityFilter(e.target.value as 'all' | 'active_30d' | 'inactive_30d' | 'inactive_60d' | 'never_active')}
@@ -578,9 +713,45 @@ export default function AdminDashboard({ height = 'auto', view = 'all' }: AdminD
       )}
 
       <div style={{ marginTop: '20px', padding: '12px', backgroundColor: '#f0f6fe', borderRadius: '6px', border: '1px solid #d7e2f3', fontSize: '12px', color: '#6277ac' }}>
-        Total Users: <strong>{users.length}</strong>
+        Total Users: <strong>{view === 'information' ? users.filter(u => u.role !== 'admin').length : users.length}</strong>
       </div>
       </>
+      )}
+
+      {showAdminInfo && (
+        <>
+          {error && (
+            <div style={{ backgroundColor: '#fff0f2', color: '#c73445', padding: '12px', borderRadius: '6px', border: '1px solid #f2c7cf', marginBottom: '20px', fontSize: '14px' }}>
+              ❌ {error}
+            </div>
+          )}
+          {loading && (
+            <div style={{ textAlign: 'center', color: '#999', padding: '40px' }}>⏳ Loading admins...</div>
+          )}
+          {!loading && adminUsers.length === 0 && (
+            <div style={{ textAlign: 'center', color: '#999', padding: '40px' }}>No admin users found</div>
+          )}
+          {!loading && adminUsers.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {adminUsers.map((admin) => (
+                <div key={admin.id} style={{ background: '#f8fbff', border: '1px solid #d7e2f3', borderRadius: '10px', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#4960ac', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, fontWeight: 700, flexShrink: 0 }}>
+                    {admin.name?.[0]?.toUpperCase() || 'A'}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, color: '#2f3f72', fontSize: 15 }}>{admin.name}</div>
+                    <div style={{ color: '#6277ac', fontSize: 13, marginTop: 2 }}>{admin.email}</div>
+                    <div style={{ color: '#9aa9c7', fontSize: 12, marginTop: 4 }}>Last active: {formatDateTime(admin.last_active_at)}</div>
+                  </div>
+                  <span style={{ background: '#e9effb', color: '#4960ac', border: '1px solid #d7e2f3', borderRadius: 4, padding: '4px 10px', fontSize: 12, fontWeight: 600, flexShrink: 0 }}>Admin</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ marginTop: '20px', padding: '12px', backgroundColor: '#f0f6fe', borderRadius: '6px', border: '1px solid #d7e2f3', fontSize: '12px', color: '#6277ac' }}>
+            Total Admins: <strong>{adminUsers.length}</strong>
+          </div>
+        </>
       )}
     </div>
   );

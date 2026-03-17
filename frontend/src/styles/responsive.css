@@ -68,7 +68,7 @@
     padding: 20px;
   }
   
-  [role="dialog"] > div {
+  [role="dialog"] > div:not(.auth-modal-content) {
     width: var(--modal-width) !important;
     max-width: var(--modal-max-width, 600px) !important;
     height: auto !important;
@@ -96,7 +96,7 @@
     padding: 10px;
   }
   
-  [role="dialog"] > div {
+  [role="dialog"] > div:not(.auth-modal-content) {
     width: var(--modal-width) !important;
     height: 90vh !important;
     max-height: 90vh !important;

@@ -29,19 +29,23 @@ type ChatThread = { id: string; title: string; messages: ChatMessage[]; createdA
 export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   const layout = useResponsiveLayout();
   const isMobileView = layout.isMobile;
+  const isCompactSidebar = layout.isMobile || layout.isTablet;
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+  const compactSidebarWidth = Math.max(260, Math.min(320, Math.round(viewportWidth * 0.78)));
   const viewHeight = typeof layout.minHeight === 'number' ? layout.minHeight : window.innerHeight;
   const scale = Math.min(1.15, Math.max(isMobileView ? 0.72 : 0.85, viewHeight / 900));
-  const sidebarWidth = isMobileView ? 0 : layout.sidebarWidth;
+  const sidebarWidth = isCompactSidebar ? compactSidebarWidth : layout.sidebarWidth;
   const sidebarInnerWidth = Math.max(sidebarWidth - Math.round(49 * scale), 180);
   const sidebarHighlightWidth = Math.max(sidebarWidth - Math.round(55 * scale), 170);
-  const contentLeft = isMobileView ? 12 : sidebarWidth + Math.round(35 * scale);
-  const contentRight = isMobileView ? 12 : 40;
+  const contentLeft = isCompactSidebar ? 12 : sidebarWidth + Math.round(35 * scale);
+  const contentRight = isCompactSidebar ? 12 : 40;
   const sidebarLeftPadding = Math.round(Math.max(12, sidebarWidth * 0.08));
   const iconLeft = Math.round(Math.max(24, sidebarWidth * 0.25));
   const labelLeft = Math.round(Math.max(70, sidebarWidth * 0.38));
 
-  const logoTop = Math.round(12 * scale);
+  const logoTop = Math.round(54 * scale);
   const logoHeight = Math.round(120 * scale);
+  const adminBadgeSidebarTop = Math.round(10 * scale);
   const dividerTop = Math.round(233 * scale);
   const newChatTop = Math.round(186.83 * scale);
   const aiTop = Math.round(266 * scale);
@@ -49,14 +53,15 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   const docTop = Math.round(372 * scale);
   const dashboardTop = Math.round(319 * scale);
   const adminTop = Math.round(372 * scale);
-  const manageDocTop = Math.round(425 * scale);
+  const adminInfoTop = Math.round(425 * scale);
+  const manageDocTop = Math.round(478 * scale);
   const sidebarIconSize = Math.round(18 * scale);
   const sidebarLabelFont = Math.max(12, Math.round(16 * scale));
   const sidebarLabelOffset = Math.round(9.5 * scale);
 
-  const chatDisplayTop = isMobileView ? 138 : Math.round(120 * scale);
-  const faqTop = isMobileView ? 138 : Math.round(80 * scale);
-  const docTopContent = isMobileView ? 138 : Math.round(100 * scale);
+  const chatDisplayTop = isMobileView ? 104 : isCompactSidebar ? 126 : Math.round(84 * scale);
+  const faqTop = isMobileView ? 104 : isCompactSidebar ? 126 : Math.round(68 * scale);
+  const docTopContent = isMobileView ? 104 : isCompactSidebar ? 126 : Math.round(88 * scale);
 
   const chatInputHeight = isMobileView ? 80 : Math.round(96 * scale);
   const chatInputBottom = isMobileView ? 12 : Math.round(30 * scale);
@@ -75,7 +80,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   const logoutBottom = Math.round(30 * scale);
   const logoutHeight = Math.round(28 * scale);
   const chatHistoryBottom = profileBottom + profileHeight + Math.round(20 * scale);
-  const [selected, setSelected] = useState<'ai' | 'qa' | 'doc' | 'dashboard' | 'admin' | 'manage-doc'>('ai');
+  const [selected, setSelected] = useState<'ai' | 'qa' | 'doc' | 'dashboard' | 'admin' | 'admin-info' | 'manage-doc'>('ai');
   const [profile, setProfile] = useState<any>(null);
   const [faqs, setFaqs] = useState<any[]>([]);
   const [threads, setThreads] = useState<ChatThread[]>([]);
@@ -86,13 +91,14 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const nextIdRef = useRef(1);
   const isAdmin = (profile?.role || '').toLowerCase() === 'admin';
-  const chatHistoryTop = isAdmin ? Math.round(531 * scale) : Math.round(430 * scale);
-  const iconPositions: Record<'ai' | 'qa' | 'doc' | 'dashboard' | 'admin' | 'manage-doc', number> = {
+  const chatHistoryTop = isAdmin ? Math.round(584 * scale) : Math.round(430 * scale);
+  const iconPositions: Record<'ai' | 'qa' | 'doc' | 'dashboard' | 'admin' | 'admin-info' | 'manage-doc', number> = {
     ai: aiTop,
     qa: qaTop,
     doc: docTop,
     dashboard: dashboardTop,
     admin: adminTop,
+    'admin-info': adminInfoTop,
     'manage-doc': manageDocTop
   };
   const highlightTop = useMemo(() => {
@@ -478,7 +484,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh', minHeight: '100vh', overflow: 'hidden', background: 'linear-gradient(to bottom, #f0f6fe, #ffffff)' }}>
-      {!isMobileView && (
+      {!isCompactSidebar && (
         <>
       <div style={{ position: 'absolute', left: 0, top: 0, width: sidebarWidth, height: '100vh', background: '#e4eef8' }} />
 
@@ -498,6 +504,39 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       >
         <img alt="CPE Logo" src={imgLogoCpe} style={{ maxWidth: '70%', maxHeight: '100%', objectFit: 'contain' }} />
       </div>
+
+      {isAdmin && (
+        <div
+          style={{
+            position: 'absolute',
+            left: Math.round(sidebarWidth / 2),
+            transform: 'translateX(-50%)',
+            top: adminBadgeSidebarTop,
+            width: 'max-content',
+            maxWidth: Math.max(170, Math.round(sidebarWidth * 0.82)),
+            height: Math.round(34 * scale),
+            borderRadius: Math.round(10 * scale),
+            border: '1px solid #e16a75',
+            background: '#fff2f4',
+            color: '#b23b4b',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            padding: '0 16px',
+            fontSize: Math.max(11, Math.round(13 * scale)),
+            fontWeight: 700,
+            letterSpacing: 0.2,
+            whiteSpace: 'nowrap'
+          }}
+          aria-label="Current role: Admin"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b23b4b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          <span>Admin Mode</span>
+        </div>
+      )}
 
       {/* Divider line */}
       <div style={{ position: 'absolute', left: sidebarLeftPadding, top: dividerTop, width: sidebarInnerWidth, height: 1, background: '#6277ac' }} />
@@ -571,14 +610,17 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
           </button>
           <button onClick={() => setSelected('admin')} style={{ position: 'absolute', left: labelLeft, top: adminTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'admin' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>User Information</button>
 
-          <button onClick={() => setSelected('manage-doc')} style={{ position: 'absolute', left: iconLeft, top: manageDocTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
-            <div style={{ position: 'absolute', inset: '5.78% 10.67% 8.34% 8.34%' }}>
-              <div style={{ position: 'absolute', inset: '-5.18% -5.49%' }}>
-                <img alt="" src={img1} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'manage-doc' ? 'brightness(0) saturate(100%)' : 'none' }} />
+          <button onClick={() => setSelected('admin-info')} style={{ position: 'absolute', left: iconLeft, top: adminInfoTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+            <div style={{ position: 'absolute', inset: '12.5%' }}>
+              <div style={{ position: 'absolute', inset: '-5.93%' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke={selected === 'admin-info' ? '#000' : '#6277ac'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block', width: '100%', height: '100%' }}>
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
               </div>
             </div>
           </button>
-          <button onClick={() => setSelected('manage-doc')} style={{ position: 'absolute', left: labelLeft, top: manageDocTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'manage-doc' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Manage Document</button>
+          <button onClick={() => setSelected('admin-info')} style={{ position: 'absolute', left: labelLeft, top: adminInfoTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'admin-info' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Admin Information</button>
+
         </>
       )}
       {/* Debug: Show profile role */}
@@ -667,7 +709,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
         </>
       )}
 
-      {isMobileView && (
+      {isCompactSidebar && (
         <div style={{ position: 'absolute', left: 12, right: 12, top: 10, zIndex: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button onClick={() => setMobileSidebarOpen(true)} style={{ border: 'none', background: '#dfe9f7', color: '#445c94', borderRadius: 8, width: 36, height: 36, fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>≡</button>
           <img alt="CPE Logo" src={imgLogoCpe} style={{ width: 96, height: 40, objectFit: 'contain' }} />
@@ -675,32 +717,122 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
         </div>
       )}
 
-      {isMobileView && mobileSidebarOpen && (
+      {isCompactSidebar && mobileSidebarOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 20, background: 'rgba(0,0,0,0.35)' }} onClick={() => setMobileSidebarOpen(false)}>
-          <div style={{ width: '80vw', maxWidth: 330, height: '100%', background: '#e4eef8', padding: 14, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <img alt="CPE Logo" src={imgLogoCpe} style={{ width: 96, height: 42, objectFit: 'contain' }} />
-              <button onClick={() => setMobileSidebarOpen(false)} style={{ border: 'none', background: 'transparent', color: '#445c94', fontSize: 24, cursor: 'pointer', lineHeight: 1 }}>×</button>
+          <div style={{ position: 'relative', width: sidebarWidth, maxWidth: '82vw', height: '100%', background: '#e4eef8' }} onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setMobileSidebarOpen(false)} style={{ position: 'absolute', right: 12, top: 12, border: 'none', background: 'transparent', color: '#445c94', fontSize: 24, cursor: 'pointer', lineHeight: 1, zIndex: 2 }}>×</button>
+
+            <div style={{ position: 'absolute', left: 0, top: logoTop, width: sidebarWidth, height: logoHeight, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+              <img alt="CPE Logo" src={imgLogoCpe} style={{ maxWidth: '70%', maxHeight: '100%', objectFit: 'contain' }} />
             </div>
-            <button onClick={() => { handleNewChat(); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: '#6277ac', padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>New Chat</button>
-            <button onClick={() => { setSelected('ai'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'ai' ? '#000' : '#6277ac', fontWeight: selected === 'ai' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>AI Chat</button>
-            {!isAdmin && <button onClick={() => { setSelected('qa'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'qa' ? '#000' : '#6277ac', fontWeight: selected === 'qa' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>FAQs</button>}
-            {!isAdmin && <button onClick={() => { setSelected('doc'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'doc' ? '#000' : '#6277ac', fontWeight: selected === 'doc' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>Documents</button>}
-            {isAdmin && <button onClick={() => { setSelected('dashboard'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'dashboard' ? '#000' : '#6277ac', fontWeight: selected === 'dashboard' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>Dashboard</button>}
-            {isAdmin && <button onClick={() => { setSelected('admin'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'admin' ? '#000' : '#6277ac', fontWeight: selected === 'admin' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>User Information</button>}
-            {isAdmin && <button onClick={() => { setSelected('manage-doc'); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 8, border: 'none', background: 'transparent', color: selected === 'manage-doc' ? '#000' : '#6277ac', fontWeight: selected === 'manage-doc' ? 600 : 400, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>Manage Docs</button>}
-            <div style={{ marginTop: 12, marginBottom: 6, fontSize: 12, color: '#6277ac' }}>Chat History</div>
-            {threads.length === 0 && <div style={{ fontSize: 12, color: '#9aa4bf', marginBottom: 12 }}>ยังไม่มีประวัติ</div>}
-            {threads.slice(0, 20).map((t) => (
-              <button key={t.id} onClick={() => { handleSelectThread(t.id); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', marginBottom: 6, border: 'none', background: 'transparent', color: t.id === activeThreadId ? '#000' : '#6277ac', fontWeight: t.id === activeThreadId ? 600 : 400, padding: '7px 0', fontSize: 12, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {t.title}
-              </button>
-            ))}
-            <div style={{ flex: 1 }} />
-            <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-              <button onClick={() => { openProfile(); setMobileSidebarOpen(false); }} style={{ flex: 1, border: 'none', background: '#fff', color: '#000', borderRadius: 10, padding: '9px 10px', fontSize: 12, cursor: 'pointer' }}>Profile</button>
-              <button onClick={() => { openLogoutConfirm(); setMobileSidebarOpen(false); }} style={{ flex: 1, border: 'none', background: '#6277ac', color: '#fff', borderRadius: 10, padding: '9px 10px', fontSize: 12, cursor: 'pointer' }}>Logout</button>
+
+            {isAdmin && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: Math.round(sidebarWidth / 2),
+                  transform: 'translateX(-50%)',
+                  top: adminBadgeSidebarTop,
+                  width: 'max-content',
+                  maxWidth: Math.max(170, Math.round(sidebarWidth * 0.82)),
+                  height: Math.round(34 * scale),
+                  borderRadius: Math.round(10 * scale),
+                  border: '1px solid #e16a75',
+                  background: '#fff2f4',
+                  color: '#b23b4b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '0 16px',
+                  fontSize: Math.max(11, Math.round(13 * scale)),
+                  fontWeight: 700,
+                  letterSpacing: 0.2,
+                  whiteSpace: 'nowrap'
+                }}
+                aria-label="Current role: Admin"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b23b4b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+                <span>Admin Mode</span>
+              </div>
+            )}
+
+            <div style={{ position: 'absolute', left: sidebarLeftPadding, top: dividerTop, width: sidebarInnerWidth, height: 1, background: '#6277ac' }} />
+            <div style={{ position: 'absolute', left: sidebarLeftPadding, top: highlightTop, width: sidebarInnerWidth, height: Math.round(44 * scale), borderRadius: Math.round(10 * scale), background: '#7587b8', transition: 'top 0.25s' }} />
+            <div style={{ position: 'absolute', left: sidebarLeftPadding + Math.round(6 * scale), top: highlightTop, width: sidebarHighlightWidth, height: Math.round(44 * scale), borderRadius: Math.round(10 * scale), background: '#fff', transition: 'top 0.25s' }} />
+
+            <button onClick={() => { setSelected('ai'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: iconLeft, top: aiTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+              <div style={{ position: 'absolute', inset: '12.5%' }}><div style={{ position: 'absolute', inset: '-5.93%' }}><img alt="" src={img2} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'ai' ? 'brightness(0) saturate(100%)' : 'brightness(0) saturate(100%) invert(46%) sepia(10%) saturate(842%) hue-rotate(178deg) brightness(94%) contrast(87%)' }} /></div></div>
+            </button>
+            <button onClick={() => { setSelected('ai'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: labelLeft, top: aiTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'ai' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>AI Chat</button>
+
+            {!isAdmin && (
+              <>
+                <button onClick={() => { setSelected('qa'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: iconLeft, top: qaTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                  <div style={{ position: 'absolute', inset: '8.33% 8.33% 12.42% 8.33%' }}><div style={{ position: 'absolute', inset: '-5.61% -5.33%' }}><img alt="" src={img3} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'qa' ? 'brightness(0) saturate(100%)' : 'none' }} /></div></div>
+                </button>
+                <button onClick={() => { setSelected('qa'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: labelLeft, top: qaTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'qa' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>FAQs</button>
+
+                <button onClick={() => { setSelected('doc'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: iconLeft, top: docTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                  <div style={{ position: 'absolute', inset: '5.78% 10.67% 8.34% 8.34%' }}><div style={{ position: 'absolute', inset: '-5.18% -5.49%' }}><img alt="" src={img1} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'doc' ? 'brightness(0) saturate(100%)' : 'none' }} /></div></div>
+                </button>
+                <button onClick={() => { setSelected('doc'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: labelLeft, top: docTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'doc' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Documents</button>
+              </>
+            )}
+
+            {isAdmin && (
+              <>
+                <button onClick={() => { setSelected('dashboard'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: iconLeft, top: dashboardTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                  <div style={{ position: 'absolute', inset: '8.33% 8.33% 12.42% 8.33%' }}><div style={{ position: 'absolute', inset: '-5.61% -5.33%' }}><img alt="" src={img3} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'dashboard' ? 'brightness(0) saturate(100%)' : 'none' }} /></div></div>
+                </button>
+                <button onClick={() => { setSelected('dashboard'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: labelLeft, top: dashboardTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'dashboard' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Dashboard</button>
+
+                <button onClick={() => { setSelected('admin'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: iconLeft, top: adminTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                  <div style={{ position: 'absolute', inset: '12.5%' }}><div style={{ position: 'absolute', inset: '-5.93%' }}><svg viewBox="0 0 24 24" fill="none" stroke={selected === 'admin' ? '#000' : '#6277ac'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block', width: '100%', height: '100%' }}><path d="M20 21a8 8 0 0 0-16 0" /><circle cx="12" cy="7" r="4" /></svg></div></div>
+                </button>
+                <button onClick={() => { setSelected('admin'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: labelLeft, top: adminTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'admin' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>User Information</button>
+
+                <button onClick={() => { setSelected('admin-info'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: iconLeft, top: adminInfoTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                  <div style={{ position: 'absolute', inset: '12.5%' }}><div style={{ position: 'absolute', inset: '-5.93%' }}><svg viewBox="0 0 24 24" fill="none" stroke={selected === 'admin-info' ? '#000' : '#6277ac'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block', width: '100%', height: '100%' }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div></div>
+                </button>
+                <button onClick={() => { setSelected('admin-info'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: labelLeft, top: adminInfoTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'admin-info' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Admin Information</button>
+
+              </>
+            )}
+
+            <button onClick={() => { handleNewChat(); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: iconLeft - Math.round(3 * scale), top: newChatTop - Math.round(3 * scale), width: Math.round(24 * scale), height: Math.round(24 * scale), overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+              <div style={{ position: 'absolute', inset: '5% 10% 5% 10%' }}><div style={{ position: 'absolute', inset: '-5%' }}><img alt="New chat" src={imgNewChat} style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain', opacity: 0.9 }} /></div></div>
+            </button>
+            <button onClick={() => { handleNewChat(); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: labelLeft, top: newChatTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, whiteSpace: 'nowrap' }}>New Chat</button>
+
+            <div style={{ position: 'absolute', left: sidebarLeftPadding, top: chatHistoryTop, width: sidebarInnerWidth, bottom: chatHistoryBottom }}>
+              <div style={{ fontSize: Math.max(10, Math.round(12 * scale)), color: '#6277ac', marginBottom: Math.round(6 * scale) }}>Chat History</div>
+              <div style={{ height: 'calc(100% - 20px)', overflowY: 'auto', paddingRight: Math.round(4 * scale) }}>
+                {threads.length === 0 ? (
+                  <div style={{ fontSize: 12, color: '#9aa4bf' }}>ยังไม่มีประวัติ</div>
+                ) : (
+                  threads.map((t) => (
+                    <div key={t.id} style={{ position: 'relative', width: '100%', marginBottom: 4 }}>
+                      <button onClick={() => { handleSelectThread(t.id); setMobileSidebarOpen(false); }} style={{ width: '100%', textAlign: 'left', border: 'none', background: t.id === activeThreadId ? '#ffffff' : 'transparent', color: t.id === activeThreadId ? '#000' : '#6277ac', fontSize: 12, padding: '6px 8px', paddingRight: '32px', borderRadius: 8, cursor: 'pointer', display: 'block' }}>{t.title}</button>
+                      <button onClick={(e) => handleDeleteThread(t.id, e)} style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', width: 20, height: 20, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6 }} aria-label="Delete thread"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d32f2f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg></button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
+
+            <div style={{ position: 'absolute', left: sidebarLeftPadding, bottom: profileBottom, width: sidebarInnerWidth, height: profileHeight, background: '#d4e2f4', borderRadius: Math.round(12 * scale), display: 'flex', alignItems: 'center', padding: `${Math.round(8 * scale)}px ${Math.round(12 * scale)}px`, gap: Math.round(12 * scale) }}>
+              <div style={{ width: Math.round(44 * scale), height: Math.round(44 * scale), borderRadius: '50%', background: '#6277ac', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: Math.max(12, Math.round(18 * scale)), fontWeight: 600 }}>{profile?.name?.[0]?.toUpperCase() || 'U'}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ color: '#2b2b2b', fontSize: Math.max(11, Math.round(14 * scale)), fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile?.name || 'Username'}</div>
+                <div style={{ color: '#6277ac', fontSize: Math.max(9, Math.round(11 * scale)), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: Math.round(2 * scale) }}>{profile?.email || 'user@example.com'}</div>
+              </div>
+              <button onClick={() => { openProfile(); setMobileSidebarOpen(false); }} style={{ width: Math.round(24 * scale), height: Math.round(24 * scale), flexShrink: 0, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="Edit profile"><svg width={Math.round(20 * scale)} height={Math.round(20 * scale)} viewBox="0 0 24 24" fill="none" stroke="#6277ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg></button>
+            </div>
+
+            <button onClick={() => { openLogoutConfirm(); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: sidebarLeftPadding, bottom: logoutBottom, width: sidebarInnerWidth, height: logoutHeight, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: Math.round(8 * scale), padding: 0 }} aria-label="Logout"><img src={imgLogout} alt="Logout" style={{ width: Math.round(18 * scale), height: Math.round(18 * scale) }} /><span style={{ color: '#6277ac', fontSize: Math.max(11, Math.round(14 * scale)), fontWeight: 500 }}>Logout</span></button>
           </div>
         </div>
       )}
@@ -783,13 +915,17 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
               style={{ position: 'absolute', right: Math.round(20 * scale), top: sendBtnTop, width: sendBtnSize, height: sendBtnSize, borderRadius: sendBtnSize, background: '#7587b8', border: 'none', cursor: isTyping ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: isTyping ? 0.6 : 1 }}
               aria-label="Send"
             >
-              <div style={{ position: 'relative', width: sendIconSize, height: sendIconSize, overflow: 'hidden', pointerEvents: 'none' }}>
-                <div style={{ position: 'absolute', inset: '20.83%' }}>
-                  <div style={{ position: 'absolute', inset: '-7.77%' }}>
-                    <img alt="" src={imgSend} style={{ display: 'block', width: '100%', height: '100%' }} />
-                  </div>
-                </div>
-              </div>
+              <img
+                alt=""
+                src={imgSend}
+                style={{
+                  display: 'block',
+                  width: Math.round(sendIconSize * 0.75),
+                  height: Math.round(sendIconSize * 0.75),
+                  objectFit: 'contain',
+                  pointerEvents: 'none'
+                }}
+              />
             </button>
           </div>
         </>
@@ -811,6 +947,13 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
           </Suspense>
         </div>
       )}
+      {selected === 'admin-info' && isAdmin && (
+        <div style={{ position: 'absolute', left: contentLeft, top: docTopContent, right: contentRight, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(24 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
+          <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px' }}>Loading...</div>}>
+            <AdminDashboard view="admin-info" />
+          </Suspense>
+        </div>
+      )}
       {selected === 'dashboard' && isAdmin && (
         <div style={{ position: 'absolute', left: contentLeft, top: docTopContent, right: contentRight, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(24 * scale), background: '#ffffff', border: '1px solid #4960ac', borderRadius: Math.round(16 * scale) }}>
           <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px' }}>Loading...</div>}>
@@ -827,7 +970,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       )}
 
       {/* Profile Section */}
-      {!isMobileView && (
+      {!isCompactSidebar && (
       <div style={{ position: 'absolute', left: sidebarLeftPadding, bottom: profileBottom, width: sidebarInnerWidth, height: profileHeight, background: '#d4e2f4', borderRadius: Math.round(12 * scale), display: 'flex', alignItems: 'center', padding: `${Math.round(8 * scale)}px ${Math.round(12 * scale)}px`, gap: Math.round(12 * scale) }}>
         {/* Profile Avatar */}
         <div style={{ width: Math.round(44 * scale), height: Math.round(44 * scale), borderRadius: '50%', background: '#6277ac', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: Math.max(12, Math.round(18 * scale)), fontWeight: 600 }}>
@@ -870,7 +1013,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       )}
 
       {/* Logout Button */}
-      {!isMobileView && (
+      {!isCompactSidebar && (
       <button 
         onClick={openLogoutConfirm}
         style={{ 
