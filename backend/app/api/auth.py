@@ -232,6 +232,7 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     
     return {"access_token": access_token, "token_type": "bearer", "user_id": user.id}
 
+
 @router.post("/token", response_model=Token)
 async def token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     """

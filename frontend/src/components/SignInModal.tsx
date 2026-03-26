@@ -17,14 +17,18 @@ const EyeIcon = ({ open }: { open: boolean }) => (
   </svg>
 );
 
-const underlineStyle: React.CSSProperties = { width: '100%', height: 1, background: '#6277ac', opacity: 0.9 };
-
 type Props = {
   open: boolean;
   onClose: () => void;
   onSwitchToSignUp?: () => void;
   onSwitchToForgotPassword?: () => void;
   onSubmitSignIn?: () => void;
+};
+
+const authInputTextStyle: React.CSSProperties = {
+  color: '#24324f',
+  WebkitTextFillColor: '#24324f',
+  caretColor: '#24324f'
 };
 
 function PrimaryButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
@@ -116,7 +120,7 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSwitchToForgotPassword
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSignIn()}
             placeholder="Enter your email"
-            style={{ width: '100%', padding: '10px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif', marginBottom: 12, boxSizing: 'border-box', background: 'transparent' }}
+            style={{ width: '100%', padding: '10px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', marginBottom: 12, boxSizing: 'border-box', background: 'transparent', ...authInputTextStyle }}
           />
 
           <div style={{ color: '#6277ac', fontSize: 14, marginBottom: 6 }}>Password</div>
@@ -127,7 +131,7 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSwitchToForgotPassword
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSignIn()}
               placeholder="Enter your password"
-              style={{ width: '100%', padding: '10px 44px 10px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif', boxSizing: 'border-box', background: 'transparent' }}
+              style={{ width: '100%', padding: '10px 44px 10px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', boxSizing: 'border-box', background: 'transparent', ...authInputTextStyle }}
             />
             <button
               type="button"
@@ -159,7 +163,7 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSwitchToForgotPassword
             </button>
             <br />
             <button onClick={onSwitchToSignUp} style={{ border: 'none', background: 'transparent', color: '#6277ac', cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 11 }}>
-              <span style={{ color: 'rgba(117,117,117,0.76)' }}>Don’t have an account ?</span>
+              <span style={{ color: 'rgba(117,117,117,0.76)' }}>Don't have an account ?</span>
               <span> Sign up</span>
             </button>
           </div>
@@ -230,7 +234,7 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSwitchToForgotPassword
           onChange={(e) => setEmail(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSignIn()}
           placeholder="Enter your email"
-          style={{ position: 'absolute', left: 100, top: 180, width: 550, padding: '8px 0 8px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
+          style={{ position: 'absolute', left: 100, top: 180, width: 550, padding: '8px 0 8px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', ...authInputTextStyle }}
         />
 
         <div style={{ position: 'absolute', left: 100, top: 235, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16 }}>Password</div>
@@ -240,7 +244,7 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSwitchToForgotPassword
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSignIn()}
           placeholder="Enter your password"
-          style={{ position: 'absolute', left: 100, top: 260, width: 550, padding: '8px 60px 8px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
+          style={{ position: 'absolute', left: 100, top: 260, width: 550, padding: '8px 60px 8px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', ...authInputTextStyle }}
         />
         <button
           type="button"
@@ -296,7 +300,7 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSwitchToForgotPassword
             fontSize: 10
           }}
         >
-          <span style={{ color: 'rgba(117,117,117,0.76)' }}>Don’t have an account ?</span>
+          <span style={{ color: 'rgba(117,117,117,0.76)' }}>Don't have an account ?</span>
           <span> Sign up</span>
         </button>
       </div>

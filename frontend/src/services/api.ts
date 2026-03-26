@@ -158,11 +158,32 @@ export const faqAPI = {
 };
 
 export const chatAPI = {
-  sendMessage(message: string, thread_id: string) {
-    return request<{ chat_id: number; message: string; answer: string; thread_id: string }>("/chat/send", {
-      method: 'POST',
-      body: JSON.stringify({ message, thread_id })
-    });
+  async sendMessage(message: string, thread_id: string, retries: number = 2) {
+    let lastError: any;
+    
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        return await request<{ chat_id: number; message: string; answer: string; thread_id: string }>("/chat/send", {
+          method: 'POST',
+          body: JSON.stringify({ message, thread_id }),
+          timeoutMs: 60000 // 60 seconds for RAG Service
+        });
+      } catch (error) {
+        lastError = error;
+        console.warn(`Send message attempt ${attempt}/${retries} failed:`, error);
+        
+        // If last attempt, throw error
+        if (attempt === retries) {
+          throw error;
+        }
+        
+        // Wait before retry (exponential backoff: 2s, 4s)
+        const delayMs = Math.min(2000 * attempt, 5000);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+    
+    throw lastError;
   },
   getHistory() {
     return request<any[]>("/chat/history", {

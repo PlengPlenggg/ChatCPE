@@ -23,63 +23,118 @@ interface LoggedInPageProps {
   onLogout?: () => void;
 }
 
-type ChatMessage = { id: number; role: 'user' | 'bot'; text: string; createdAt: number };
+type ChatMessage = { id: string; role: 'user' | 'bot'; text: string; createdAt: number };
 type ChatThread = { id: string; title: string; messages: ChatMessage[]; createdAt: number; updatedAt: number };
 
 export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   const layout = useResponsiveLayout();
   const isMobileView = layout.isMobile;
+  const isTabletView = layout.isTablet;
   const isCompactSidebar = layout.isMobile || layout.isTablet;
-  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
-  const compactSidebarWidth = Math.max(260, Math.min(320, Math.round(viewportWidth * 0.78)));
-  const viewHeight = typeof layout.minHeight === 'number' ? layout.minHeight : window.innerHeight;
-  const scale = Math.min(1.15, Math.max(isMobileView ? 0.72 : 0.85, viewHeight / 900));
-  const sidebarWidth = isCompactSidebar ? compactSidebarWidth : layout.sidebarWidth;
-  const sidebarInnerWidth = Math.max(sidebarWidth - Math.round(49 * scale), 180);
-  const sidebarHighlightWidth = Math.max(sidebarWidth - Math.round(55 * scale), 170);
-  const contentLeft = isCompactSidebar ? 12 : sidebarWidth + Math.round(35 * scale);
-  const contentRight = isCompactSidebar ? 12 : 40;
-  const sidebarLeftPadding = Math.round(Math.max(12, sidebarWidth * 0.08));
-  const iconLeft = Math.round(Math.max(24, sidebarWidth * 0.25));
-  const labelLeft = Math.round(Math.max(70, sidebarWidth * 0.38));
+  const isLikelyIPad = useMemo(() => {
+    if (typeof navigator === 'undefined') {
+      return false;
+    }
+    const ua = navigator.userAgent || '';
+    const platform = navigator.platform || '';
+    const touchPoints = navigator.maxTouchPoints || 0;
+    return /iPad/i.test(ua) || (platform === 'MacIntel' && touchPoints > 1);
+  }, []);
+  const [windowSize, setWindowSize] = useState({ width: typeof window !== 'undefined' ? window.innerWidth : 1200, height: typeof window !== 'undefined' ? window.innerHeight : 900 });
+  
+  // Handle window resize with debounce
+  useEffect(() => {
+    let resizeTimer: ReturnType<typeof setTimeout>;
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+      }, 100);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimer);
+    };
+  }, []);
 
-  const logoTop = Math.round(54 * scale);
-  const logoHeight = Math.round(120 * scale);
-  const adminBadgeSidebarTop = Math.round(10 * scale);
-  const dividerTop = Math.round(233 * scale);
-  const newChatTop = Math.round(186.83 * scale);
-  const aiTop = Math.round(266 * scale);
-  const qaTop = Math.round(319 * scale);
-  const docTop = Math.round(372 * scale);
-  const dashboardTop = Math.round(319 * scale);
-  const adminTop = Math.round(372 * scale);
-  const adminInfoTop = Math.round(425 * scale);
-  const manageDocTop = Math.round(478 * scale);
-  const sidebarIconSize = Math.round(18 * scale);
-  const sidebarLabelFont = Math.max(12, Math.round(16 * scale));
-  const sidebarLabelOffset = Math.round(9.5 * scale);
+  // Memoize all sidebar calculations to ensure they update together
+  const sidebarLayoutCalcs = useMemo(() => {
+    const viewportWidth = windowSize.width;
+    const viewHeight = windowSize.height;
+    const scale = (!isCompactSidebar && isLikelyIPad)
+      ? Math.min(1.08, Math.max(0.85, viewportWidth / 1180))
+      : isTabletView
+        ? Math.min(0.92, Math.max(0.74, viewHeight / 980))
+        : Math.min(1.0, Math.max(isMobileView ? 0.72 : 0.85, viewHeight / 900));
+    const compactSidebarWidth = Math.max(260, Math.min(400, Math.round(viewportWidth * 0.75)));
+    const sidebarWidth = isCompactSidebar ? compactSidebarWidth : layout.sidebarWidth;
+    const sidebarInnerWidth = Math.max(sidebarWidth - Math.round(49 * scale), 180);
+    const sidebarHighlightWidth = Math.max(sidebarWidth - Math.round(55 * scale), 170);
+    const contentLeft = isCompactSidebar ? 12 : sidebarWidth + Math.round(35 * scale);
+    const contentRight = isCompactSidebar ? 12 : 40;
+    const sidebarLeftPadding = Math.round(Math.max(12, sidebarWidth * 0.08));
+    const iconLeft = Math.round(Math.max(24, sidebarWidth * 0.25));
+    const labelLeft = Math.round(Math.max(70, sidebarWidth * 0.38));
 
-  const chatDisplayTop = isMobileView ? 104 : isCompactSidebar ? 126 : Math.round(84 * scale);
-  const faqTop = isMobileView ? 104 : isCompactSidebar ? 126 : Math.round(68 * scale);
-  const docTopContent = isMobileView ? 104 : isCompactSidebar ? 126 : Math.round(88 * scale);
+    const logoTop = Math.round(54 * scale);
+    const logoHeight = Math.round(120 * scale);
+    const adminBadgeSidebarTop = Math.round(10 * scale);
+    const dividerTop = Math.round(233 * scale);
+    const newChatTop = Math.round(186.83 * scale);
+    const aiTop = Math.round(266 * scale);
+    const qaTop = Math.round(319 * scale);
+    const docTop = Math.round(372 * scale);
+    const dashboardTop = Math.round(319 * scale);
+    const adminTop = Math.round(372 * scale);
+    const adminInfoTop = Math.round(425 * scale);
+    const manageDocTop = Math.round(478 * scale);
+    const sidebarIconSize = Math.round(18 * scale);
+    const sidebarLabelFont = Math.max(12, Math.round(16 * scale));
+    const sidebarLabelOffset = Math.round(9.5 * scale);
 
-  const chatInputHeight = isMobileView ? 80 : Math.round(96 * scale);
-  const chatInputBottom = isMobileView ? 12 : Math.round(30 * scale);
-  const chatDisplayBottom = chatInputBottom + chatInputHeight + Math.round(10 * scale);
-  const inputTop = isMobileView ? 18 : Math.round(26 * scale);
-  const inputHeight = isMobileView ? 44 : Math.round(58 * scale);
-  const inputRight = isMobileView ? 62 : Math.round(80 * scale);
-  const inputFontSize = isMobileView ? 14 : Math.max(12, Math.round(16 * scale));
-  const inputPadY = isMobileView ? 0 : Math.max(0, Math.round((inputHeight - inputFontSize) / 2) - 1);
-  const sendBtnSize = isMobileView ? 34 : Math.round(40 * scale);
-  const sendBtnTop = Math.round((chatInputHeight - sendBtnSize) / 2);
-  const sendIconSize = isMobileView ? 22 : Math.round(28 * scale);
+    const chatDisplayTop = isMobileView ? 104 : isTabletView ? 112 : isCompactSidebar ? 126 : Math.round(84 * scale);
+    const faqTop = isMobileView ? 104 : isTabletView ? 112 : isCompactSidebar ? 126 : Math.round(68 * scale);
+    const docTopContent = isMobileView ? 104 : isTabletView ? 112 : isCompactSidebar ? 126 : Math.round(88 * scale);
 
-  const profileBottom = Math.round(70 * scale);
-  const profileHeight = Math.round(60 * scale);
-  const logoutBottom = Math.round(30 * scale);
-  const logoutHeight = Math.round(28 * scale);
-  const chatHistoryBottom = profileBottom + profileHeight + Math.round(20 * scale);
+    const chatInputHeight = isMobileView ? 80 : isTabletView ? 86 : Math.round(96 * scale);
+    const chatInputBottom = isMobileView ? 12 : isTabletView ? 16 : Math.round(30 * scale);
+    const chatDisplayBottom = chatInputBottom + chatInputHeight + Math.round(10 * scale);
+    const inputTop = isMobileView ? 18 : isTabletView ? 16 : Math.round(26 * scale);
+    const inputHeight = isMobileView ? 44 : isTabletView ? 52 : Math.round(58 * scale);
+    const inputRight = isMobileView ? 62 : isTabletView ? 74 : Math.round(80 * scale);
+    const inputFontSize = isMobileView ? 14 : Math.max(12, Math.round(16 * scale));
+    const inputPadY = isMobileView ? 0 : Math.max(0, Math.round((inputHeight - inputFontSize) / 2) - 1);
+    const sendBtnSize = isMobileView ? 34 : Math.round(40 * scale);
+    const sendBtnTop = Math.round((chatInputHeight - sendBtnSize) / 2);
+    const sendIconSize = isMobileView ? 22 : Math.round(28 * scale);
+
+    const profileBottom = Math.round(70 * scale);
+    const profileHeight = Math.round(60 * scale);
+    const logoutBottom = Math.round(30 * scale);
+    const logoutHeight = Math.round(28 * scale);
+    const chatHistoryBottom = profileBottom + profileHeight + logoutHeight + Math.round(20 * scale);
+
+    return {
+      scale, sidebarWidth, sidebarInnerWidth, sidebarHighlightWidth, contentLeft, contentRight,
+      sidebarLeftPadding, iconLeft, labelLeft, logoTop, logoHeight, adminBadgeSidebarTop,
+      dividerTop, newChatTop, aiTop, qaTop, docTop, dashboardTop, adminTop, adminInfoTop, manageDocTop,
+      sidebarIconSize, sidebarLabelFont, sidebarLabelOffset, chatDisplayTop, faqTop, docTopContent,
+      chatInputHeight, chatInputBottom, chatDisplayBottom, inputTop, inputHeight, inputRight,
+      inputFontSize, inputPadY, sendBtnSize, sendBtnTop, sendIconSize, profileBottom, profileHeight,
+      logoutBottom, logoutHeight, chatHistoryBottom,
+    };
+  }, [windowSize.width, windowSize.height, isMobileView, isTabletView, isCompactSidebar, layout.sidebarWidth, isLikelyIPad]);
+
+  const {
+    scale, sidebarWidth, sidebarInnerWidth, sidebarHighlightWidth, contentLeft, contentRight,
+    sidebarLeftPadding, iconLeft, labelLeft, logoTop, logoHeight, adminBadgeSidebarTop,
+    dividerTop, newChatTop, aiTop, qaTop, docTop, dashboardTop, adminTop, adminInfoTop, manageDocTop,
+    sidebarIconSize, sidebarLabelFont, sidebarLabelOffset, chatDisplayTop, faqTop, docTopContent,
+    chatInputHeight, chatInputBottom, chatDisplayBottom, inputTop, inputHeight, inputRight,
+    inputFontSize, inputPadY, sendBtnSize, sendBtnTop, sendIconSize, profileBottom, profileHeight,
+    logoutBottom, logoutHeight, chatHistoryBottom,
+  } = sidebarLayoutCalcs;
   const [selected, setSelected] = useState<'ai' | 'qa' | 'doc' | 'dashboard' | 'admin' | 'admin-info' | 'manage-doc'>('ai');
   const [profile, setProfile] = useState<any>(null);
   const [faqs, setFaqs] = useState<any[]>([]);
@@ -91,7 +146,16 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const nextIdRef = useRef(1);
   const isAdmin = (profile?.role || '').toLowerCase() === 'admin';
-  const chatHistoryTop = isAdmin ? Math.round(584 * scale) : Math.round(430 * scale);
+  const chatHistoryTop = useMemo(() => {
+    const lastMenuTop = isAdmin ? adminInfoTop : docTop;
+    const menuRowHeight = Math.round(44 * scale);
+    const lastMenuBottom = lastMenuTop + menuRowHeight;
+    const baseTop = lastMenuBottom + Math.round((isAdmin ? 16 : 20) * scale);
+    const minHistoryHeight = Math.round(96 * scale);
+    const maxTopForMinHeight = windowSize.height - chatHistoryBottom - minHistoryHeight;
+    const minTopAllowed = lastMenuTop + Math.round(36 * scale);
+    return Math.max(minTopAllowed, Math.min(baseTop, maxTopForMinHeight));
+  }, [isAdmin, adminInfoTop, docTop, scale, windowSize.height, chatHistoryBottom]);
   const iconPositions: Record<'ai' | 'qa' | 'doc' | 'dashboard' | 'admin' | 'admin-info' | 'manage-doc', number> = {
     ai: aiTop,
     qa: qaTop,
@@ -116,7 +180,16 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
 
   const [profileView, setProfileView] = useState<'none' | 'profile' | 'edit'>('none');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const chatDisplayRef = useRef<HTMLDivElement>(null);
+
+  const createTempThreadId = useCallback(() => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return `temp-${crypto.randomUUID()}`;
+    }
+    return `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }, []);
 
   const linkifyText = useCallback((value: string, keyPrefix: string): React.ReactNode[] => {
     const urlRegex = /((?:https?:\/\/|www\.)[^\s<]+)/gi;
@@ -272,8 +345,10 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
         const threadsFormatted: ChatThread[] = threads_data.map((thread: any) => {
           const messages: ChatMessage[] = (thread.messages || []).map((msg: any, idx: number) => {
             const createdAt = msg.created_at ? new Date(msg.created_at).getTime() : Date.now() + idx;
+            const sourceId = msg.id ?? idx;
+            const roleTag = msg.role === 'bot' ? 'b' : 'u';
             return {
-              id: msg.id || idx,
+              id: `${roleTag}-${sourceId}-${createdAt}-${idx}`,
               role: msg.role as 'user' | 'bot',
               text: msg.text,
               createdAt
@@ -294,14 +369,9 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
           setActiveThreadId(threadsFormatted[0].id);
         }
 
-        // Calculate next ID based on existing messages
-        let maxId = 1;
-        threadsFormatted.forEach(t => {
-          t.messages.forEach(m => {
-            if (m.id > maxId) maxId = m.id;
-          });
-        });
-        nextIdRef.current = maxId + 1;
+        // Seed local message id counter based on total loaded messages.
+        const totalMessages = threadsFormatted.reduce((sum, t) => sum + t.messages.length, 0);
+        nextIdRef.current = Math.max(1, totalMessages + 1);
       } catch (err) {
         console.error('Failed to load chat history:', err);
         setThreads([]);
@@ -321,7 +391,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
     setSelected('ai');
     const now = Date.now();
     // สร้าง thread ID ใหม่ (สำหรับ optimistic update)
-    const tempThreadId = `temp-${now}`;
+    const tempThreadId = createTempThreadId();
     
     const newThread: ChatThread = {
       id: tempThreadId,
@@ -333,7 +403,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
     setThreads((prev) => [newThread, ...prev]);
     setActiveThreadId(tempThreadId);
     setInput('');
-  }, []);
+  }, [createTempThreadId]);
   const handleSelectThread = useCallback((id: string) => {
     setSelected('ai');
     setActiveThreadId(id);
@@ -358,17 +428,19 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   }, [activeThreadId]);
   const handleSend = useCallback(async () => {
     const trimmed = input.trim();
-    if (!trimmed) return;
+    if (!trimmed || isSending) return; // Prevent duplicate sends
     
     const startId = nextIdRef.current;
     nextIdRef.current += 2;
     const now = Date.now();
-    const userMsg: ChatMessage = { id: startId, role: 'user', text: trimmed, createdAt: now };
+    const userLocalId = `local-u-${startId}-${now}`;
+    const botLocalId = `local-b-${startId + 1}-${now + 1}`;
+    const userMsg: ChatMessage = { id: userLocalId, role: 'user', text: trimmed, createdAt: now };
     
     // ถ้าไม่มี active thread ให้สร้างใหม่
     let currentThreadId = activeThreadId;
     if (!currentThreadId) {
-      currentThreadId = `temp-${now}`;
+      currentThreadId = createTempThreadId();
       const newThread: ChatThread = {
         id: currentThreadId,
         title: trimmed.length > 32 ? `${trimmed.slice(0, 32)}...` : trimmed,
@@ -410,6 +482,8 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
     });
 
     setInput('');
+    setIsSending(true);
+    setErrorMessage(null);
     await Promise.resolve();
 
     let answerText = '...';
@@ -417,23 +491,40 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
     setIsTyping(true);
     
     try {
-      // ส่ง message พร้อม thread_id
+      // ส่ง message พร้อม thread_id (มี retry mechanism)
       const res = await chatAPI.sendMessage(trimmed, currentThreadId);
       answerText = res.data?.answer || 'ระบบไม่สามารถตอบได้ในขณะนี้';
       // ถ้า API return thread_id ที่ต่างจากใหญ่ให้ใช้อันนั้น (เช่นจากการ save ใน backend)
       if (res.data?.thread_id) {
         realThreadId = res.data.thread_id;
       }
-    } catch (err) {
+      setErrorMessage(null);
+    } catch (err: any) {
       console.error('Failed to send message:', err);
-      answerText = 'เกิดข้อผิดพลาดในการส่งข้อความ';
+      
+      // แสดง error message ที่ชัดเจน
+      let errorMsg = 'เกิดข้อผิดพลาดในการส่งข้อความ';
+      
+      if (err?.response?.data?.detail) {
+        errorMsg = err.response.data.detail;
+      } else if (err?.response?.status === 0) {
+        errorMsg = 'หมดเวลาการเชื่อมต่อ กรุณาตรวจสอบเน็ตเวิร์ก';
+      } else if (err?.response?.status === 401) {
+        errorMsg = 'Session หมดอายุ กรุณา Refresh หน้า';
+      } else if (err?.response?.status === 500) {
+        errorMsg = 'เซิร์ฟเวอร์มีข้อผิดพลาด กรุณาลองใหม่';
+      }
+      
+      setErrorMessage(errorMsg);
+      answerText = `❌ ${errorMsg}`;
     } finally {
       setIsTyping(false);
+      setIsSending(false);
     }
 
     setThreads((prev) => {
       const existing = prev.find((t) => t.id === currentThreadId);
-      const botMsg: ChatMessage = { id: startId + 1, role: 'bot', text: answerText, createdAt: now + 1 };
+      const botMsg: ChatMessage = { id: botLocalId, role: 'bot', text: answerText, createdAt: now + 1 };
       
       if (!existing) {
         const title = trimmed.length > 32 ? `${trimmed.slice(0, 32)}...` : trimmed;
@@ -449,7 +540,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
         ];
       }
       
-      const hasUserMsg = existing.messages.some((msg) => msg.id === startId);
+      const hasUserMsg = existing.messages.some((msg) => msg.id === userLocalId);
       const updatedMessages = hasUserMsg
         ? [...existing.messages, botMsg]
         : [...existing.messages, userMsg, botMsg];
@@ -468,7 +559,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
     if (realThreadId !== currentThreadId) {
       setActiveThreadId(realThreadId);
     }
-  }, [input, activeThreadId]);
+  }, [input, activeThreadId, isSending, createTempThreadId]);
   const confirmLogout = useCallback(async () => {
     setShowLogoutConfirm(false);
     try {
@@ -483,10 +574,10 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   }, [onLogout]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100vh', minHeight: '100vh', overflow: 'hidden', background: 'linear-gradient(to bottom, #f0f6fe, #ffffff)' }}>
+    <div style={{ position: 'relative', width: '100%', height: isTabletView ? '100dvh' : '100svh', minHeight: '100svh', overflow: 'hidden', background: 'linear-gradient(to bottom, #f0f6fe, #ffffff)' }}>
       {!isCompactSidebar && (
         <>
-      <div style={{ position: 'absolute', left: 0, top: 0, width: sidebarWidth, height: '100vh', background: '#e4eef8' }} />
+      <div style={{ position: 'absolute', left: 0, top: 0, width: sidebarWidth, height: '100svh', background: '#e4eef8' }} />
 
       {/* Logo */}
       <div
@@ -641,9 +732,9 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       <button onClick={handleNewChat} style={{ position: 'absolute', left: labelLeft, top: newChatTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>New Chat</button>
 
       {/* Chat history */}
-      <div style={{ position: 'absolute', left: sidebarLeftPadding, top: chatHistoryTop, width: sidebarInnerWidth, bottom: chatHistoryBottom }}>
+      <div style={{ position: 'absolute', left: sidebarLeftPadding, top: chatHistoryTop, width: sidebarInnerWidth, bottom: chatHistoryBottom, display: 'flex', flexDirection: 'column', minHeight: Math.round(72 * scale) }}>
         <div style={{ fontSize: Math.max(10, Math.round(12 * scale)), color: '#6277ac', marginBottom: Math.round(6 * scale) }}>Chat History</div>
-        <div style={{ height: 'calc(100% - 20px)', overflowY: 'auto', paddingRight: Math.round(4 * scale) }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: Math.round(4 * scale) }}>
           {threads.length === 0 ? (
             <div style={{ fontSize: 12, color: '#9aa4bf' }}>ยังไม่มีประวัติ</div>
           ) : (
@@ -807,9 +898,9 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
             </button>
             <button onClick={() => { handleNewChat(); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: labelLeft, top: newChatTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, whiteSpace: 'nowrap' }}>New Chat</button>
 
-            <div style={{ position: 'absolute', left: sidebarLeftPadding, top: chatHistoryTop, width: sidebarInnerWidth, bottom: chatHistoryBottom }}>
+            <div style={{ position: 'absolute', left: sidebarLeftPadding, top: chatHistoryTop, width: sidebarInnerWidth, bottom: chatHistoryBottom, display: 'flex', flexDirection: 'column', minHeight: Math.round(72 * scale) }}>
               <div style={{ fontSize: Math.max(10, Math.round(12 * scale)), color: '#6277ac', marginBottom: Math.round(6 * scale) }}>Chat History</div>
-              <div style={{ height: 'calc(100% - 20px)', overflowY: 'auto', paddingRight: Math.round(4 * scale) }}>
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: Math.round(4 * scale) }}>
                 {threads.length === 0 ? (
                   <div style={{ fontSize: 12, color: '#9aa4bf' }}>ยังไม่มีประวัติ</div>
                 ) : (
@@ -899,20 +990,26 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
 
           <div style={{ position: 'absolute', left: contentLeft, right: contentRight, bottom: chatInputBottom, height: chatInputHeight }}>
             <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid #4960ac', borderRadius: Math.round(15 * scale) }} />
+            {errorMessage && (
+              <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: 8, padding: '8px 12px', background: '#ffebee', border: '1px solid #ef5350', borderRadius: 8, fontSize: 13, color: '#d32f2f', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>{errorMessage}</span>
+                <button onClick={() => setErrorMessage(null)} style={{ background: 'none', border: 'none', color: '#d32f2f', cursor: 'pointer', fontSize: 16, padding: 0 }}>✕</button>
+              </div>
+            )}
             <input
-              disabled={isTyping}
+              disabled={isSending || isTyping}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !isTyping) handleSend();
+                if (e.key === 'Enter' && !isSending && !isTyping) handleSend();
               }}
               placeholder="พิมพ์ข้อความที่นี่..."
-              style={{ position: 'absolute', left: Math.round(20 * scale), top: inputTop, right: inputRight, height: inputHeight, border: 'none', outline: 'none', fontSize: inputFontSize, lineHeight: 'normal', paddingTop: inputPadY, paddingBottom: inputPadY, background: 'transparent', opacity: isTyping ? 0.6 : 1, cursor: isTyping ? 'not-allowed' : 'text' }}
+              style={{ position: 'absolute', left: Math.round(20 * scale), top: inputTop, right: inputRight, height: inputHeight, border: 'none', outline: 'none', fontSize: inputFontSize, lineHeight: 'normal', paddingTop: inputPadY, paddingBottom: inputPadY, background: 'transparent', color: '#24324f', WebkitTextFillColor: '#24324f', caretColor: '#24324f', opacity: isSending || isTyping ? 0.6 : 1, cursor: isSending || isTyping ? 'not-allowed' : 'text' }}
             />
             <button
-              disabled={isTyping}
+              disabled={isSending || isTyping}
               onClick={handleSend}
-              style={{ position: 'absolute', right: Math.round(20 * scale), top: sendBtnTop, width: sendBtnSize, height: sendBtnSize, borderRadius: sendBtnSize, background: '#7587b8', border: 'none', cursor: isTyping ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: isTyping ? 0.6 : 1 }}
+              style={{ position: 'absolute', right: Math.round(20 * scale), top: sendBtnTop, width: sendBtnSize, height: sendBtnSize, borderRadius: sendBtnSize, background: '#7587b8', border: 'none', cursor: isSending || isTyping ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: isSending || isTyping ? 0.6 : 1 }}
               aria-label="Send"
             >
               <img

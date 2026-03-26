@@ -89,6 +89,7 @@ function SignInButton({ style, onClick }: { style?: React.CSSProperties; onClick
 export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
   const layout = useResponsiveLayout();
   const isMobileView = layout.isMobile;
+  const isTabletView = layout.isTablet;
   const isCompactSidebar = layout.isMobile || layout.isTablet;
   const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
   const compactSidebarWidth = Math.max(260, Math.min(320, Math.round(viewportWidth * 0.78)));
@@ -102,9 +103,9 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
   const labelLeft = Math.round(Math.max(70, visualSidebarWidth * 0.38));
   const chatDisplayLeft = contentLeft;
   const chatDisplayRight = isCompactSidebar ? 12 : 40;
-  const contentTopOffset = isMobileView ? 68 : isCompactSidebar ? 84 : 86;
-  const contentBottomOffset = isCompactSidebar ? 108 : 150;
-  const inputBottomOffset = isCompactSidebar ? 12 : 30;
+  const contentTopOffset = isMobileView ? 68 : isTabletView ? 78 : isCompactSidebar ? 84 : 86;
+  const contentBottomOffset = isTabletView ? 102 : isCompactSidebar ? 108 : 150;
+  const inputBottomOffset = isTabletView ? 14 : isCompactSidebar ? 12 : 30;
   
   const [modal, setModal] = useState<'none' | 'signin' | 'signup' | 'forgotpassword'>('none');
   const [userManagementOpen, setUserManagementOpen] = useState(false);
@@ -308,8 +309,8 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
       style={{
         position: 'relative',
         width: '100%',
-        height: '100vh',
-        minHeight: '100vh',
+        height: isTabletView ? '100dvh' : '100svh',
+        minHeight: '100svh',
         overflow: 'hidden',
         background: 'linear-gradient(to bottom, #f0f6fe, #ffffff)'
       }}
@@ -324,7 +325,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
       {!isCompactSidebar && (
         <>
           {/* Left sidebar */}
-          <div style={{ position: 'absolute', left: 0, top: 0, width: sidebarWidth, height: '100vh', background: '#e4eef8' }} />
+          <div style={{ position: 'absolute', left: 0, top: 0, width: sidebarWidth, height: isTabletView ? '100dvh' : '100svh', background: '#e4eef8' }} />
 
           {/* Logo */}
           <div
@@ -498,7 +499,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
 
       {/* Search bar and send button (only on AI) */}
       {selected === 'ai' && (
-        <div style={{ position: 'absolute', left: chatDisplayLeft, right: chatDisplayRight, bottom: inputBottomOffset, height: isCompactSidebar ? 84 : 96 }}>
+        <div style={{ position: 'absolute', left: chatDisplayLeft, right: chatDisplayRight, bottom: inputBottomOffset, height: isTabletView ? 80 : isCompactSidebar ? 84 : 96 }}>
           <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid #4960ac', borderRadius: 15 }} />
           <input
             disabled={isTyping}
@@ -508,7 +509,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
               if (e.key === 'Enter' && !isTyping) handleSend();
             }}
             placeholder="พิมพ์ข้อความที่นี่..."
-            style={{ position: 'absolute', left: 16, top: isCompactSidebar ? 18 : 26, right: 72, height: isCompactSidebar ? 46 : 58, border: 'none', outline: 'none', fontSize: isCompactSidebar ? 14 : 16, lineHeight: 'normal', paddingTop: isCompactSidebar ? 12 : 20, paddingBottom: isCompactSidebar ? 12 : 20, background: 'transparent', opacity: isTyping ? 0.6 : 1, cursor: isTyping ? 'not-allowed' : 'text' }}
+            style={{ position: 'absolute', left: 16, top: isTabletView ? 14 : isCompactSidebar ? 18 : 26, right: 72, height: isTabletView ? 48 : isCompactSidebar ? 46 : 58, border: 'none', outline: 'none', fontSize: isCompactSidebar ? 14 : 16, lineHeight: 'normal', paddingTop: isTabletView ? 10 : isCompactSidebar ? 12 : 20, paddingBottom: isTabletView ? 10 : isCompactSidebar ? 12 : 20, background: 'transparent', color: '#24324f', WebkitTextFillColor: '#24324f', caretColor: '#24324f', opacity: isTyping ? 0.6 : 1, cursor: isTyping ? 'not-allowed' : 'text' }}
           />
           <button
             disabled={isTyping}

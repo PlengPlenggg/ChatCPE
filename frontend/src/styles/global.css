@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   /* Responsive sizing variables */
   --sidebar-width: 285px;
   --modal-width: 750px;

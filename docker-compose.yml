@@ -19,13 +19,13 @@ services:
       - db
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://tesrtuser:testpassword@db:5432/chatcpe_db
+      - DATABASE_URL=postgresql://testuser:testpassword@db:5432/chatcpe_db
       - APP_BASE_URL=http://10.35.29.103:8080
       - BACKEND_BASE_URL=http://10.35.29.103:8000
       - RAG_SERVICE_URL=http://10.35.29.103:8001
-      - RAG_REQUEST_TIMEOUT_SECONDS=${RAG_REQUEST_TIMEOUT_SECONDS:-0}
-      - RAG_MAX_RETRIES=${RAG_MAX_RETRIES:-1}
-      - RAG_RETRY_DELAY_SECONDS=${RAG_RETRY_DELAY_SECONDS:-1.0}
+      - RAG_REQUEST_TIMEOUT_SECONDS=${RAG_REQUEST_TIMEOUT_SECONDS:-45}
+      - RAG_MAX_RETRIES=${RAG_MAX_RETRIES:-3}
+      - RAG_RETRY_DELAY_SECONDS=${RAG_RETRY_DELAY_SECONDS:-1.5}
       - RAG_MAX_TOTAL_WAIT_SECONDS=${RAG_MAX_TOTAL_WAIT_SECONDS:-300}
       - SMTP_HOST=smtp.gmail.com
       - SMTP_PORT=587
@@ -41,7 +41,7 @@ services:
       - "5432:5432"
     environment:
       - POSTGRES_DB=chatcpe_db
-      - POSTGRES_USER=tesrtuser
+      - POSTGRES_USER=testuser
       - POSTGRES_PASSWORD=testpassword
     volumes:
       - postgres_data:/var/lib/postgresql/data
