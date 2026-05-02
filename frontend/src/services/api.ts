@@ -1,5 +1,7 @@
-export const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL
-  || 'http://10.35.29.103:8000';
+const rawApiBaseUrl = (import.meta as any).env.VITE_API_BASE_URL || '/api';
+export const API_BASE_URL = rawApiBaseUrl.endsWith('/')
+  ? rawApiBaseUrl.slice(0, -1)
+  : rawApiBaseUrl;
 
 type ApiResponse<T> = { data: T };
 
