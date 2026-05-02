@@ -1,11 +1,10 @@
-/**
- * Hook for responsive layout calculations
- * Returns responsive dimensions based on screen size
- */
-
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
+import { useMediaQuery } from 'react-responsive';
 
 export interface ResponsiveLayout {
+  isMobile: boolean;
+  isTablet: boolean;
+  isDesktop: boolean;
   minHeight: number | string;
   mainPaddingLeft: number;
   sidebarWidth: number;
@@ -18,108 +17,118 @@ export interface ResponsiveLayout {
 }
 
 export const useResponsiveLayout = (): ResponsiveLayout => {
-  const [layout, setLayout] = useState<ResponsiveLayout>({
-    minHeight: 730,
-    mainPaddingLeft: 100,
-    sidebarWidth: 285,
-    sidebarHeight: 730,
-    contentWidth: 'calc(100% - 285px)',
-    modalWidth: 750,
-    modalHeight: 580,
-    inputWidth: 550,
-    fontSize: 14,
-  });
+  const isNarrowWidth = useMediaQuery({ maxWidth: 767 });
+  const isCoarsePointer = useMediaQuery({ query: '(pointer: coarse)' });
+  const isNoHover = useMediaQuery({ query: '(hover: none)' });
+  const isMobile = isNarrowWidth && (isCoarsePointer || isNoHover);
+  const isTablet = useMediaQuery({ minWidth: 768, maxWidth: 1023 });
+  const isLaptop = useMediaQuery({ minWidth: 1024, maxWidth: 1199 });
+  const isDesktop = useMediaQuery({ minWidth: 1200 });
+  const isWideDesktop = useMediaQuery({ minWidth: 1440 });
 
-  useEffect(() => {
-    const calculateLayout = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+  return useMemo(() => {
+    if (isWideDesktop) {
+      return {
+        isMobile: false,
+        isTablet: false,
+        isDesktop: true,
+        minHeight: 730,
+        mainPaddingLeft: 120,
+        sidebarWidth: 340,
+        sidebarHeight: '100vh',
+        contentWidth: 'calc(100% - 340px)',
+        modalWidth: 850,
+        modalHeight: 650,
+        inputWidth: 600,
+        fontSize: 15,
+      };
+    }
 
-      // Desktop Large (1440px+)
-      if (width >= 1440) {
-        setLayout({
-          minHeight: height > 730 ? height : 730,
-          mainPaddingLeft: 120,
-          sidebarWidth: 300,
-          sidebarHeight: height > 730 ? height : 730,
-          contentWidth: width > 585 ? `calc(100% - 300px)` : '100%',
-          modalWidth: 850,
-          modalHeight: 650,
-          inputWidth: 600,
-          fontSize: 15,
-        });
-      }
-      // Laptop/Desktop (1200px - 1439px) - DEFAULT
-      else if (width >= 1200) {
-        setLayout({
-          minHeight: height > 730 ? height : 730,
-          mainPaddingLeft: 100,
-          sidebarWidth: 285,
-          sidebarHeight: height > 730 ? height : 730,
-          contentWidth: width > 385 ? `calc(100% - 285px)` : '100%',
-          modalWidth: 750,
-          modalHeight: 580,
-          inputWidth: 550,
-          fontSize: 14,
-        });
-      }
-      // Laptop 13"-15" (1024px - 1199px)
-      else if (width >= 1024) {
-        setLayout({
-          minHeight: height > 700 ? height : 700,
-          mainPaddingLeft: 80,
-          sidebarWidth: 240,
-          sidebarHeight: height > 700 ? height : 700,
-          contentWidth: width > 320 ? `calc(100% - 240px)` : '100%',
-          modalWidth: 700,
-          modalHeight: 550,
-          inputWidth: 500,
-          fontSize: 13,
-        });
-      }
-      // Tablet (768px - 1023px)
-      else if (width >= 768) {
-        setLayout({
-          minHeight: '100vh',
-          mainPaddingLeft: 20,
-          sidebarWidth: width > 600 ? 200 : width,
-          sidebarHeight: '100vh',
-          contentWidth: width > 600 ? `calc(100% - 200px)` : '100%',
-          modalWidth: '90vw',
-          modalHeight: 'auto',
-          inputWidth: 'calc(90vw - 80px)',
-          fontSize: 13,
-        });
-      }
-      // Mobile (< 768px)
-      else {
-        setLayout({
-          minHeight: '100vh',
-          mainPaddingLeft: 15,
-          sidebarWidth: width,
-          sidebarHeight: '100vh',
-          contentWidth: '100%',
-          modalWidth: '95vw',
-          modalHeight: 'auto',
-          inputWidth: 'calc(95vw - 40px)',
-          fontSize: 12,
-        });
-      }
+    if (isDesktop) {
+      return {
+        isMobile: false,
+        isTablet: false,
+        isDesktop: true,
+        minHeight: 730,
+        mainPaddingLeft: 100,
+        sidebarWidth: 320,
+        sidebarHeight: '100vh',
+        contentWidth: 'calc(100% - 320px)',
+        modalWidth: 750,
+        modalHeight: 580,
+        inputWidth: 550,
+        fontSize: 14,
+      };
+    }
+
+    if (isLaptop) {
+      return {
+        isMobile: false,
+        isTablet: false,
+        isDesktop: false,
+        minHeight: 700,
+        mainPaddingLeft: 80,
+        sidebarWidth: 240,
+        sidebarHeight: '100vh',
+        contentWidth: 'calc(100% - 240px)',
+        modalWidth: 700,
+        modalHeight: 550,
+        inputWidth: 500,
+        fontSize: 13,
+      };
+    }
+
+    if (isTablet) {
+      return {
+        isMobile: false,
+        isTablet: true,
+        isDesktop: false,
+        minHeight: '100vh',
+        mainPaddingLeft: 20,
+        sidebarWidth: 200,
+        sidebarHeight: '100vh',
+        contentWidth: 'calc(100% - 200px)',
+        modalWidth: '90vw',
+        modalHeight: 'auto',
+        inputWidth: 'calc(90vw - 80px)',
+        fontSize: 13,
+      };
+    }
+
+    if (isNarrowWidth && !isMobile) {
+      return {
+        isMobile: false,
+        isTablet: false,
+        isDesktop: false,
+        minHeight: 680,
+        mainPaddingLeft: 20,
+        sidebarWidth: 220,
+        sidebarHeight: '100vh',
+        contentWidth: 'calc(100% - 220px)',
+        modalWidth: 680,
+        modalHeight: 520,
+        inputWidth: 460,
+        fontSize: 13,
+      };
+    }
+
+    return {
+      isMobile,
+      isTablet: false,
+      isDesktop: false,
+      minHeight: '100vh',
+      mainPaddingLeft: 12,
+      sidebarWidth: 0,
+      sidebarHeight: '100vh',
+      contentWidth: '100%',
+      modalWidth: '95vw',
+      modalHeight: 'auto',
+      inputWidth: 'calc(95vw - 40px)',
+      fontSize: 12,
     };
-
-    calculateLayout();
-
-    // Recalculate on resize
-    window.addEventListener('resize', calculateLayout);
-    return () => window.removeEventListener('resize', calculateLayout);
-  }, []);
-
-  return layout;
+  }, [isDesktop, isLaptop, isMobile, isNarrowWidth, isTablet, isWideDesktop]);
 };
 
-/**
- * Simpler hook for just modal dimensions
- */
 export const useModalDimensions = () => {
   const layout = useResponsiveLayout();
   return {

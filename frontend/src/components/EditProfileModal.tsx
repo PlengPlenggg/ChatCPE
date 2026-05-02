@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { authAPI } from '../services/api';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
 // Replacing remote arrow + line with inline assets for faster rendering
 const ArrowIcon = () => (
@@ -16,6 +17,7 @@ interface EditProfileModalProps {
 }
 
 function EditProfileModal({ onBack, onSave }: EditProfileModalProps) {
+  const layout = useResponsiveLayout();
   const [username, setUsername] = useState("");
   const [pressed, setPressed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -39,6 +41,76 @@ function EditProfileModal({ onBack, onSave }: EditProfileModalProps) {
     }
   };
 
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const modalScale = layout.isMobile
+    ? Math.min((viewportWidth - 24) / 750, (viewportHeight - 24) / 550, 1)
+    : 1;
+
+  if (layout.isMobile) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2100, padding: 12 }}>
+        <div
+          style={{ width: '100%', maxWidth: 380, borderRadius: 16, background: 'linear-gradient(to bottom, #f0f6fe, #ffffff)', boxShadow: '5px 5px 10px rgba(0,0,0,0.25)', padding: '16px 14px 18px', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, sans-serif' }}
+          data-node-id="34:655"
+        >
+          <button
+            aria-label="Back to Profile"
+            type="button"
+            onClick={onBack}
+            style={{ width: 36, height: 36, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}
+          >
+            <ArrowIcon />
+          </button>
+
+          <div style={{ color: '#6277ac', fontSize: 30, fontWeight: 600, textAlign: 'center', marginBottom: 16 }}>Edit Profile</div>
+
+          <label htmlFor="edit-username" style={{ color: '#6277ac', fontSize: 14, marginBottom: 6, display: 'block' }}>New Username</label>
+          <input
+            id="edit-username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Enter new username"
+            style={{ width: '100%', padding: '10px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif', marginBottom: 10, boxSizing: 'border-box', background: 'transparent' }}
+          />
+
+          {error && (
+            <div style={{ color: '#d32f2f', fontSize: 12, marginBottom: 10, fontFamily: 'Inter, system-ui, sans-serif' }}>
+              {error}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={loading}
+            onMouseDown={() => setPressed(true)}
+            onMouseUp={() => setPressed(false)}
+            onMouseLeave={() => setPressed(false)}
+            style={{
+              width: '100%',
+              height: 44,
+              borderRadius: 100,
+              border: 'none',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              background: pressed && !loading
+                ? 'linear-gradient(90deg, rgba(255,206,142,0.8), rgba(255,148,11,0.8))'
+                : 'linear-gradient(90deg, rgba(163,194,230,0.8), rgba(117,135,184,0.8))',
+              color: '#fff',
+              fontSize: 16,
+              fontWeight: 500,
+              fontFamily: 'Inter, system-ui, sans-serif',
+              opacity: loading ? 0.6 : 1
+            }}
+          >
+            {loading ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2100 }}>
       <div
@@ -49,7 +121,9 @@ function EditProfileModal({ onBack, onSave }: EditProfileModalProps) {
           background: 'linear-gradient(to bottom, #f0f6fe, #ffffff)',
           borderRadius: 20,
           boxShadow: '5px 5px 10px rgba(0,0,0,0.25)',
-          fontFamily: 'Inter, system-ui, sans-serif'
+          fontFamily: 'Inter, system-ui, sans-serif',
+          transform: `scale(${modalScale})`,
+          transformOrigin: 'center center'
         }}
         data-node-id="34:655"
       >

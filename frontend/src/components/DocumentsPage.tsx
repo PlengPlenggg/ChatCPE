@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { documentsAPI } from '../services/api';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
 type FormItem = {
   code: string;
@@ -11,39 +12,93 @@ type Props = {
   height?: number | string;
 };
 
+const DOCUMENTS_CACHE_KEY = 'documents_forms_cache_v1';
+
+type DocumentsCachePayload = {
+  items: FormItem[];
+  fetchedAt: number;
+};
+
 export default function DocumentsPage({ height = 'auto' }: Props) {
+  const layout = useResponsiveLayout();
+  const isMobileView = layout.isMobile;
   const [items, setItems] = useState<FormItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+
+  const handleDownload = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const saveCache = (forms: FormItem[]) => {
+    const payload: DocumentsCachePayload = {
+      items: forms,
+      fetchedAt: Date.now()
+    };
+    localStorage.setItem(DOCUMENTS_CACHE_KEY, JSON.stringify(payload));
+    setLastUpdated(payload.fetchedAt);
+  };
+
+  const loadFromApi = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const res = await documentsAPI.getForms();
+      const forms = res.data || [];
+      setItems(forms);
+      saveCache(forms);
+    } catch (err) {
+      setError('ไม่สามารถโหลดรายการแบบฟอร์มได้');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const load = async () => {
+    const bootstrap = async () => {
       try {
-        setLoading(true);
-        const res = await documentsAPI.getForms();
-        setItems(res.data || []);
+        const rawCache = localStorage.getItem(DOCUMENTS_CACHE_KEY);
+        if (rawCache) {
+          const parsed = JSON.parse(rawCache) as DocumentsCachePayload;
+          if (Array.isArray(parsed.items)) {
+            setItems(parsed.items);
+            setLastUpdated(typeof parsed.fetchedAt === 'number' ? parsed.fetchedAt : null);
+            setLoading(false);
+            return;
+          }
+        }
       } catch (err) {
-        setError('ไม่สามารถโหลดรายการแบบฟอร์มได้');
-      } finally {
-        setLoading(false);
+        localStorage.removeItem(DOCUMENTS_CACHE_KEY);
       }
+      await loadFromApi();
     };
-    load();
+    bootstrap();
   }, []);
 
   return (
     <div style={{ width: '100%', height, display: 'flex', flexDirection: 'column' }}>
-      <h2 style={{ margin: 0, textAlign: 'center', color: '#6277ac', fontWeight: 700, fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <h2 style={{ margin: 0, marginBottom: 20, textAlign: 'center', color: '#6277ac', fontWeight: 700, fontFamily: 'Inter, system-ui, sans-serif', fontSize: isMobileView ? 20 : 28 }}>
         แบบฟอร์ม คำร้องต่างๆ / Request Forms
       </h2>
 
-      <div style={{ marginTop: 24, borderTop: '1px solid #e6e6e6' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr 120px', padding: '12px 8px', fontWeight: 600, color: '#2b2b2b' }}>
-          <div>แบบฟอร์ม</div>
-          <div>ประเภทคำร้อง</div>
-          <div style={{ textAlign: 'right' }}>ดาวน์โหลด</div>
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ color: '#6277ac', fontSize: 12 }}>
+          {lastUpdated
+            ? `อัปเดตล่าสุด: ${new Date(lastUpdated).toLocaleString()}`
+            : 'ยังไม่มีข้อมูลแคช'}
         </div>
-        <div style={{ borderTop: '1px solid #e6e6e6' }} />
+      </div>
+
+      <div style={{ marginTop: 0 }}>
+        {!isMobileView && (
+          <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr 120px', padding: '12px 8px', marginBottom: 8, fontWeight: 600, color: '#2b2b2b', borderBottom: '1px solid #d0d0d0' }}>
+            <div>แบบฟอร์ม</div>
+            <div>ประเภทคำร้อง</div>
+            <div style={{ textAlign: 'right' }}>ดาวน์โหลด</div>
+          </div>
+        )}
 
         {loading && (
           <div style={{ padding: 16, color: '#6277ac' }}>กำลังโหลดรายการแบบฟอร์ม...</div>
@@ -56,32 +111,52 @@ export default function DocumentsPage({ height = 'auto' }: Props) {
         )}
 
         {!loading && !error && items.map((item, idx) => (
-          <div key={`${item.code}-${idx}`} style={{ display: 'grid', gridTemplateColumns: '240px 1fr 120px', padding: '14px 8px', borderBottom: '1px solid #efefef', alignItems: 'center' }}>
-            <div style={{ color: '#2b2b2b', fontWeight: 600 }}>{item.code}</div>
-            <div style={{ color: '#2b2b2b', lineHeight: 1.4, fontWeight: 600 }}>
-              {item.title.split('\n').map((line, i) => (
-                <div key={i}>{line}</div>
-              ))}
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <a
-                href={item.url}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  display: 'inline-block',
-                  padding: '6px 12px',
-                  borderRadius: 6,
-                  background: '#2b5b9f',
-                  color: '#fff',
-                  textDecoration: 'none',
-                  fontSize: 12
-                }}
+          isMobileView ? (
+            <div key={`${item.code}-${idx}`} style={{ padding: '12px', border: '1px solid #e6ebf3', borderRadius: 10, marginBottom: 10, background: '#fff' }}>
+              <div style={{ color: '#6277ac', fontSize: 12, marginBottom: 4 }}>แบบฟอร์ม</div>
+              <div style={{ color: '#2b2b2b', fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{item.code}</div>
+              <div style={{ color: '#6277ac', fontSize: 12, marginBottom: 4 }}>ประเภทคำร้อง</div>
+              <div style={{ color: '#2b2b2b', lineHeight: 1.4, fontWeight: 600, fontSize: 13, marginBottom: 10 }}>
+                {item.title.split('\n').map((line, i) => (
+                  <div key={i}>{line}</div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => handleDownload(item.url)}
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: '#2b5b9f', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13 }}
               >
                 ดาวน์โหลด
-              </a>
+              </button>
             </div>
-          </div>
+          ) : (
+            <div key={`${item.code}-${idx}`} style={{ display: 'grid', gridTemplateColumns: '240px 1fr 120px', padding: '14px 8px', borderBottom: '1px solid #efefef', alignItems: 'center' }}>
+              <div style={{ color: '#2b2b2b', fontWeight: 600 }}>{item.code}</div>
+              <div style={{ color: '#2b2b2b', lineHeight: 1.4, fontWeight: 600 }}>
+                {item.title.split('\n').map((line, i) => (
+                  <div key={i}>{line}</div>
+                ))}
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <button
+                  type="button"
+                  onClick={() => handleDownload(item.url)}
+                  style={{
+                    display: 'inline-block',
+                    padding: '6px 12px',
+                    borderRadius: 6,
+                    background: '#2b5b9f',
+                    color: '#fff',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 12
+                  }}
+                >
+                  ดาวน์โหลด
+                </button>
+              </div>
+            </div>
+          )
         ))}
       </div>
     </div>

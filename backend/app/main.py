@@ -6,6 +6,7 @@ import os
 from app.api import auth, chat, files, faq, documents
 from app.config import DATABASE_URL, UPLOAD_DIR
 from app.models.database import Base, engine
+from app.api.faq import seed_sample_faqs
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,6 +18,10 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     logger.info(f"Database tables created successfully!")
+    
+    # Create sample FAQs if not already exist
+    seed_sample_faqs()
+    
     yield
     # Shutdown
     logger.info("Application shutting down...")
@@ -28,11 +33,26 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Configure CORS for specific origins
+cors_origins = [
+    # Production
+    "https://chatbot.dev.cpe.kmutt.ac.th",
+    "https://chatbot.dev.cpe.kmutt.ac.th:8000",
+    # Development
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:8080",
+    # Local Docker access
+    "http://10.35.29.103:8080",
+    # For direct API access testing
+    "http://localhost:8000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

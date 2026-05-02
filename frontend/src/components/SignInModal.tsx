@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { authAPI } from '../services/api';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
 const ArrowIcon = () => (
   <svg width={25} height={25} viewBox="0 0 24 24" fill="none" stroke="#6277ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -16,13 +17,18 @@ const EyeIcon = ({ open }: { open: boolean }) => (
   </svg>
 );
 
-const underlineStyle: React.CSSProperties = { width: '100%', height: 1, background: '#6277ac', opacity: 0.9 };
-
 type Props = {
   open: boolean;
   onClose: () => void;
   onSwitchToSignUp?: () => void;
+  onSwitchToForgotPassword?: () => void;
   onSubmitSignIn?: () => void;
+};
+
+const authInputTextStyle: React.CSSProperties = {
+  color: '#24324f',
+  WebkitTextFillColor: '#24324f',
+  caretColor: '#24324f'
 };
 
 function PrimaryButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
@@ -56,7 +62,8 @@ function PrimaryButton({ onClick, disabled }: { onClick: () => void; disabled?: 
   );
 }
 
-function SignInModal({ open, onClose, onSwitchToSignUp, onSubmitSignIn }: Props) {
+function SignInModal({ open, onClose, onSwitchToSignUp, onSwitchToForgotPassword, onSubmitSignIn }: Props) {
+  const layout = useResponsiveLayout();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -64,6 +71,10 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSubmitSignIn }: Props)
   const [error, setError] = useState('');
 
   if (!open) return null;
+
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const modalScale = Math.max(0.55, Math.min((viewportWidth - 24) / 750, (viewportHeight - 24) / 580, 1));
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -84,14 +95,91 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSubmitSignIn }: Props)
     }
   };
 
+  if (layout.isMobile) {
+    return (
+      <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
+        <div className="auth-modal-content" style={{ width: '100%', maxWidth: 380, borderRadius: 16, background: 'linear-gradient(to bottom, #f0f6fe, #ffffff)', boxShadow: '5px 5px 10px rgba(0,0,0,0.25)', padding: '16px 14px 18px', boxSizing: 'border-box' }}>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            style={{ width: 36, height: 36, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}
+          >
+            <ArrowIcon />
+          </button>
+
+          <div style={{ color: '#6277ac', fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 600, fontSize: 34, lineHeight: 1.1, textAlign: 'center', marginBottom: 14 }}>
+            Welcome to
+            <br />
+            Chat CPE
+          </div>
+
+          <div style={{ color: '#6277ac', fontSize: 14, marginBottom: 6 }}>Email</div>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSignIn()}
+            placeholder="Enter your email"
+            style={{ width: '100%', padding: '10px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', marginBottom: 12, boxSizing: 'border-box', background: 'transparent', ...authInputTextStyle }}
+          />
+
+          <div style={{ color: '#6277ac', fontSize: 14, marginBottom: 6 }}>Password</div>
+          <div style={{ position: 'relative', marginBottom: 10 }}>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSignIn()}
+              placeholder="Enter your password"
+              style={{ width: '100%', padding: '10px 44px 10px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', boxSizing: 'border-box', background: 'transparent', ...authInputTextStyle }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              style={{ position: 'absolute', right: 8, top: 6, width: 30, height: 30, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <EyeIcon open={showPassword} />
+            </button>
+          </div>
+
+          {error && (
+            <div style={{ color: '#d32f2f', fontSize: 12, marginBottom: 10, fontFamily: 'Inter, system-ui, sans-serif' }}>
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={handleSignIn}
+            disabled={loading}
+            style={{ width: '100%', height: 44, borderRadius: 40, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', color: '#fff', opacity: loading ? 0.6 : 1, background: 'linear-gradient(90deg, rgba(163,194,230,0.8), rgba(98,119,172,0.8))', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 16, marginBottom: 10 }}
+          >
+            Sign in
+          </button>
+
+          <div style={{ textAlign: 'center' }}>
+            <button onClick={onSwitchToForgotPassword} style={{ border: 'none', background: 'transparent', color: '#6277ac', cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 11, textDecoration: 'underline', marginBottom: 4 }}>
+              Forgot Password?
+            </button>
+            <br />
+            <button onClick={onSwitchToSignUp} style={{ border: 'none', background: 'transparent', color: '#6277ac', cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 11 }}>
+              <span style={{ color: 'rgba(117,117,117,0.76)' }}>Don't have an account ?</span>
+              <span> Sign up</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 1000 }}>
+    <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, boxSizing: 'border-box' }}>
       <div
+        className="auth-modal-content"
         style={{
-          position: 'absolute',
-          left: '50%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)',
+          position: 'relative',
+          transform: `scale(${modalScale})`,
+          transformOrigin: 'center center',
           width: 750,
           height: 580,
           borderRadius: 20,
@@ -146,7 +234,7 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSubmitSignIn }: Props)
           onChange={(e) => setEmail(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSignIn()}
           placeholder="Enter your email"
-          style={{ position: 'absolute', left: 100, top: 180, width: 550, padding: '8px 0 8px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
+          style={{ position: 'absolute', left: 100, top: 180, width: 550, padding: '8px 0 8px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', ...authInputTextStyle }}
         />
 
         <div style={{ position: 'absolute', left: 100, top: 235, transform: 'translateY(-50%)', color: '#6277ac', fontSize: 16 }}>Password</div>
@@ -156,7 +244,7 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSubmitSignIn }: Props)
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSignIn()}
           placeholder="Enter your password"
-          style={{ position: 'absolute', left: 100, top: 260, width: 550, padding: '8px 60px 8px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }}
+          style={{ position: 'absolute', left: 100, top: 260, width: 550, padding: '8px 60px 8px 12px', border: 'none', borderBottom: '1px solid #6277ac', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', ...authInputTextStyle }}
         />
         <button
           type="button"
@@ -176,6 +264,26 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSubmitSignIn }: Props)
         <PrimaryButton onClick={handleSignIn} disabled={loading} />
 
         <button
+          onClick={onSwitchToForgotPassword}
+          style={{
+            position: 'absolute',
+            left: 374.5,
+            top: 380,
+            transform: 'translate(-50%, -50%)',
+            width: 185,
+            height: 22,
+            border: 'none',
+            background: 'transparent',
+            color: '#6277ac',
+            cursor: 'pointer',
+            fontFamily: 'Inter, system-ui, sans-serif',
+            fontSize: 10
+          }}
+        >
+          <span style={{ color: '#6277ac', textDecoration: 'underline' }}>Forgot Password?</span>
+        </button>
+
+        <button
           onClick={onSwitchToSignUp}
           style={{
             position: 'absolute',
@@ -192,7 +300,7 @@ function SignInModal({ open, onClose, onSwitchToSignUp, onSubmitSignIn }: Props)
             fontSize: 10
           }}
         >
-          <span style={{ color: 'rgba(117,117,117,0.76)' }}>Don’t have an account ?</span>
+          <span style={{ color: 'rgba(117,117,117,0.76)' }}>Don't have an account ?</span>
           <span> Sign up</span>
         </button>
       </div>

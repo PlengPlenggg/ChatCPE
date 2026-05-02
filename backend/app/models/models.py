@@ -15,6 +15,8 @@ class User(Base):
     is_verified = Column(Boolean, default=False, nullable=False)
     verification_token = Column(String, nullable=True)
     verification_sent_at = Column(DateTime, nullable=True)
+    reset_password_token = Column(String, nullable=True)
+    reset_password_sent_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
