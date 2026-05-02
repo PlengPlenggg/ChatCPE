@@ -26,6 +26,8 @@ interface LoggedInPageProps {
 type ChatMessage = { id: string; role: 'user' | 'bot'; text: string; createdAt: number };
 type ChatThread = { id: string; title: string; messages: ChatMessage[]; createdAt: number; updatedAt: number };
 
+const stripSourceTags = (value: string) => value.replace(/\s*\[[^\]\n]+\/\d+\]/g, '');
+
 export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   const layout = useResponsiveLayout();
   const isMobileView = layout.isMobile;
@@ -83,15 +85,17 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
     const dividerTop = Math.round(233 * scale);
     const newChatTop = Math.round(186.83 * scale);
     const aiTop = Math.round(266 * scale);
-    const qaTop = Math.round(319 * scale);
-    const docTop = Math.round(372 * scale);
-    const dashboardTop = Math.round(319 * scale);
-    const adminTop = Math.round(372 * scale);
-    const adminInfoTop = Math.round(425 * scale);
-    const manageDocTop = Math.round(478 * scale);
+    const menuRowStep = Math.round(58 * scale);
+    const qaTop = aiTop + menuRowStep;
+    const docTop = qaTop + menuRowStep;
+    const dashboardTop = qaTop + menuRowStep;
+    const adminTop = dashboardTop + menuRowStep;
+    const adminInfoTop = adminTop + menuRowStep;
+    const manageDocTop = adminInfoTop + menuRowStep;
     const sidebarIconSize = Math.round(18 * scale);
     const sidebarLabelFont = Math.max(12, Math.round(16 * scale));
-    const sidebarLabelOffset = Math.round(9.5 * scale);
+    const sidebarLabelOffset = Math.round(11 * scale);
+    const adminSidebarLabelOffset = Math.round(12 * scale);
 
     const chatDisplayTop = isMobileView ? 104 : isTabletView ? 112 : isCompactSidebar ? 126 : Math.round(84 * scale);
     const faqTop = isMobileView ? 104 : isTabletView ? 112 : isCompactSidebar ? 126 : Math.round(68 * scale);
@@ -119,7 +123,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       scale, sidebarWidth, sidebarInnerWidth, sidebarHighlightWidth, contentLeft, contentRight,
       sidebarLeftPadding, iconLeft, labelLeft, logoTop, logoHeight, adminBadgeSidebarTop,
       dividerTop, newChatTop, aiTop, qaTop, docTop, dashboardTop, adminTop, adminInfoTop, manageDocTop,
-      sidebarIconSize, sidebarLabelFont, sidebarLabelOffset, chatDisplayTop, faqTop, docTopContent,
+      sidebarIconSize, sidebarLabelFont, sidebarLabelOffset, adminSidebarLabelOffset, chatDisplayTop, faqTop, docTopContent,
       chatInputHeight, chatInputBottom, chatDisplayBottom, inputTop, inputHeight, inputRight,
       inputFontSize, inputPadY, sendBtnSize, sendBtnTop, sendIconSize, profileBottom, profileHeight,
       logoutBottom, logoutHeight, chatHistoryBottom,
@@ -130,7 +134,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
     scale, sidebarWidth, sidebarInnerWidth, sidebarHighlightWidth, contentLeft, contentRight,
     sidebarLeftPadding, iconLeft, labelLeft, logoTop, logoHeight, adminBadgeSidebarTop,
     dividerTop, newChatTop, aiTop, qaTop, docTop, dashboardTop, adminTop, adminInfoTop, manageDocTop,
-    sidebarIconSize, sidebarLabelFont, sidebarLabelOffset, chatDisplayTop, faqTop, docTopContent,
+    sidebarIconSize, sidebarLabelFont, sidebarLabelOffset, adminSidebarLabelOffset, chatDisplayTop, faqTop, docTopContent,
     chatInputHeight, chatInputBottom, chatDisplayBottom, inputTop, inputHeight, inputRight,
     inputFontSize, inputPadY, sendBtnSize, sendBtnTop, sendIconSize, profileBottom, profileHeight,
     logoutBottom, logoutHeight, chatHistoryBottom,
@@ -173,7 +177,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   }, [iconPositions, selected, scale, isAdmin]);
 
   useEffect(() => {
-    if (isAdmin && (selected === 'qa' || selected === 'doc')) {
+    if (isAdmin && selected === 'doc') {
       setSelected('ai');
     }
   }, [isAdmin, selected]);
@@ -236,7 +240,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
   }, []);
 
   const renderBotMessage = useCallback((text: string) => {
-    const lines = text.split('\n');
+    const lines = stripSourceTags(text).split('\n');
     const nodes: JSX.Element[] = [];
     let paragraphBuffer: string[] = [];
     let listBuffer: string[] = [];
@@ -289,6 +293,15 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
     return nodes;
   }, [linkifyText]);
 
+  const loadFAQs = useCallback(async () => {
+    try {
+      const faqRes = await faqAPI.getAllFAQs();
+      setFaqs(faqRes.data || []);
+    } catch (err) {
+      console.error('Failed to load FAQs:', err);
+    }
+  }, []);
+
   const loadProfileAndFAQ = useCallback(async () => {
     try {
       const profileRes = await authAPI.getProfile();
@@ -296,12 +309,11 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       console.log('Profile role:', profileRes.data?.role);
       setProfile(profileRes.data);
       console.log('Profile set to state');
-      const faqRes = await faqAPI.getAllFAQs();
-      setFaqs(faqRes.data || []);
+      await loadFAQs();
     } catch (err) {
       console.error('Failed to load data:', err);
     }
-  }, []);
+  }, [loadFAQs]);
 
   useEffect(() => {
     loadProfileAndFAQ();
@@ -350,9 +362,17 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
             return {
               id: `${roleTag}-${sourceId}-${createdAt}-${idx}`,
               role: msg.role as 'user' | 'bot',
-              text: msg.text,
+              text: stripSourceTags(msg.text || ''),
               createdAt
             };
+          }).sort((a: ChatMessage, b: ChatMessage) => {
+            if (a.createdAt !== b.createdAt) {
+              return a.createdAt - b.createdAt;
+            }
+            if (a.role !== b.role) {
+              return a.role === 'user' ? -1 : 1;
+            }
+            return a.id.localeCompare(b.id);
           });
 
           return {
@@ -365,9 +385,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
         });
 
         setThreads(threadsFormatted);
-        if (threadsFormatted.length > 0) {
-          setActiveThreadId(threadsFormatted[0].id);
-        }
+        setActiveThreadId(null);
 
         // Seed local message id counter based on total loaded messages.
         const totalMessages = threadsFormatted.reduce((sum, t) => sum + t.messages.length, 0);
@@ -452,6 +470,22 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       setActiveThreadId(currentThreadId);
     }
 
+    const previousThreadMessages = threads.find((t) => t.id === currentThreadId)?.messages || [];
+    const requestMessages = [
+      ...previousThreadMessages.map((msg) => ({
+        role: (msg.role === 'bot' ? 'assistant' : 'user') as 'assistant' | 'user',
+        content: msg.text,
+      })),
+      { role: 'user' as const, content: trimmed }
+    ];
+    
+    // Debug logging
+    console.log(`[LoggedInPage] Building context for message send:`, {
+      previousMessageCount: previousThreadMessages.length,
+      requestMessagesCount: requestMessages.length,
+      requestMessagesPreview: requestMessages.slice(0, 3).map(m => ({ role: m.role, contentLength: m.content.length }))
+    });
+
     // แสดงข้อความผู้ใช้ทันที
     setThreads((prev) => {
       const existing = prev.find((t) => t.id === currentThreadId);
@@ -492,8 +526,11 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
     
     try {
       // ส่ง message พร้อม thread_id (มี retry mechanism)
-      const res = await chatAPI.sendMessage(trimmed, currentThreadId);
-      answerText = res.data?.answer || 'ระบบไม่สามารถตอบได้ในขณะนี้';
+      const res = await chatAPI.sendMessage(trimmed, currentThreadId, 2, {
+        session_id: currentThreadId,
+        messages: requestMessages
+      });
+      answerText = stripSourceTags(res.data?.answer || 'ระบบไม่สามารถตอบได้ในขณะนี้');
       // ถ้า API return thread_id ที่ต่างจากใหญ่ให้ใช้อันนั้น (เช่นจากการ save ใน backend)
       if (res.data?.thread_id) {
         realThreadId = res.data.thread_id;
@@ -516,7 +553,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       }
       
       setErrorMessage(errorMsg);
-      answerText = `❌ ${errorMsg}`;
+      answerText = stripSourceTags(`❌ ${errorMsg}`);
     } finally {
       setIsTyping(false);
       setIsSending(false);
@@ -559,7 +596,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
     if (realThreadId !== currentThreadId) {
       setActiveThreadId(realThreadId);
     }
-  }, [input, activeThreadId, isSending, createTempThreadId]);
+  }, [input, activeThreadId, isSending, createTempThreadId, threads]);
   const confirmLogout = useCallback(async () => {
     setShowLogoutConfirm(false);
     try {
@@ -645,18 +682,18 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       </button>
       <button onClick={() => setSelected('ai')} style={{ position: 'absolute', left: labelLeft, top: aiTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'ai' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>AI Chat</button>
 
+      {/* FAQs with icon */}
+      <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: iconLeft, top: qaTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+        <div style={{ position: 'absolute', inset: '8.33% 8.33% 12.42% 8.33%' }}>
+          <div style={{ position: 'absolute', inset: '-5.61% -5.33%' }}>
+            <img alt="" src={img3} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'qa' ? 'brightness(0) saturate(100%)' : 'none' }} />
+          </div>
+        </div>
+      </button>
+      <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: labelLeft, top: qaTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'qa' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>FAQs</button>
+
       {!isAdmin && (
         <>
-          {/* FAQs with icon */}
-          <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: iconLeft, top: qaTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
-            <div style={{ position: 'absolute', inset: '8.33% 8.33% 12.42% 8.33%' }}>
-              <div style={{ position: 'absolute', inset: '-5.61% -5.33%' }}>
-                <img alt="" src={img3} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'qa' ? 'brightness(0) saturate(100%)' : 'none' }} />
-              </div>
-            </div>
-          </button>
-          <button onClick={() => setSelected('qa')} style={{ position: 'absolute', left: labelLeft, top: qaTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'qa' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>FAQs</button>
-
           {/* Document with icon */}
           <button onClick={() => setSelected('doc')} style={{ position: 'absolute', left: iconLeft, top: docTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
             <div style={{ position: 'absolute', inset: '5.78% 10.67% 8.34% 8.34%' }}>
@@ -679,7 +716,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
               </div>
             </div>
           </button>
-          <button onClick={() => setSelected('dashboard')} style={{ position: 'absolute', left: labelLeft, top: dashboardTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'dashboard' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Dashboard</button>
+          <button onClick={() => setSelected('dashboard')} style={{ position: 'absolute', left: labelLeft, top: dashboardTop + adminSidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'dashboard' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Dashboard</button>
 
           <button onClick={() => setSelected('admin')} style={{ position: 'absolute', left: iconLeft, top: adminTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
             <div style={{ position: 'absolute', inset: '12.5%' }}>
@@ -699,7 +736,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
               </div>
             </div>
           </button>
-          <button onClick={() => setSelected('admin')} style={{ position: 'absolute', left: labelLeft, top: adminTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'admin' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>User Information</button>
+          <button onClick={() => setSelected('admin')} style={{ position: 'absolute', left: labelLeft, top: adminTop + adminSidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'admin' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>User Information</button>
 
           <button onClick={() => setSelected('admin-info')} style={{ position: 'absolute', left: iconLeft, top: adminInfoTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
             <div style={{ position: 'absolute', inset: '12.5%' }}>
@@ -710,7 +747,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
               </div>
             </div>
           </button>
-          <button onClick={() => setSelected('admin-info')} style={{ position: 'absolute', left: labelLeft, top: adminInfoTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'admin-info' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Admin Information</button>
+          <button onClick={() => setSelected('admin-info')} style={{ position: 'absolute', left: labelLeft, top: adminInfoTop + adminSidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'admin-info' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Admin Information</button>
 
         </>
       )}
@@ -859,13 +896,13 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
             </button>
             <button onClick={() => { setSelected('ai'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: labelLeft, top: aiTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'ai' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>AI Chat</button>
 
+            <button onClick={() => { setSelected('qa'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: iconLeft, top: qaTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+              <div style={{ position: 'absolute', inset: '8.33% 8.33% 12.42% 8.33%' }}><div style={{ position: 'absolute', inset: '-5.61% -5.33%' }}><img alt="" src={img3} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'qa' ? 'brightness(0) saturate(100%)' : 'none' }} /></div></div>
+            </button>
+            <button onClick={() => { setSelected('qa'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: labelLeft, top: qaTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'qa' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>FAQs</button>
+
             {!isAdmin && (
               <>
-                <button onClick={() => { setSelected('qa'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: iconLeft, top: qaTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                  <div style={{ position: 'absolute', inset: '8.33% 8.33% 12.42% 8.33%' }}><div style={{ position: 'absolute', inset: '-5.61% -5.33%' }}><img alt="" src={img3} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'qa' ? 'brightness(0) saturate(100%)' : 'none' }} /></div></div>
-                </button>
-                <button onClick={() => { setSelected('qa'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: labelLeft, top: qaTop + sidebarLabelOffset, transform: 'translateY(-50%)', color: selected === 'qa' ? '#000' : '#6277ac', fontSize: sidebarLabelFont, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>FAQs</button>
-
                 <button onClick={() => { setSelected('doc'); setMobileSidebarOpen(false); }} style={{ position: 'absolute', left: iconLeft, top: docTop, width: sidebarIconSize, height: sidebarIconSize, overflow: 'hidden', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
                   <div style={{ position: 'absolute', inset: '5.78% 10.67% 8.34% 8.34%' }}><div style={{ position: 'absolute', inset: '-5.18% -5.49%' }}><img alt="" src={img1} style={{ display: 'block', width: '100%', height: '100%', filter: selected === 'doc' ? 'brightness(0) saturate(100%)' : 'none' }} /></div></div>
                 </button>
@@ -1029,7 +1066,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       )}
       {selected === 'qa' && (
         <div style={{ position: 'absolute', left: contentLeft, top: faqTop, right: contentRight, bottom: chatInputBottom, overflow: 'auto', padding: Math.round(16 * scale) }}>
-          <FAQsAccordion faqs={faqs} />
+          <FAQsAccordion faqs={faqs} canManage={isAdmin} onFaqsUpdated={setFaqs} />
         </div>
       )}
       {selected === 'doc' && (

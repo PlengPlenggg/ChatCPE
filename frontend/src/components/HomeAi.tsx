@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, Suspense, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, Suspense, useEffect, useRef } from 'react';
 import { faqAPI, chatAPI } from '../services/api';
 import FAQsAccordion from './FAQsAccordion';
 import DocumentsPage from './DocumentsPage';
@@ -86,6 +86,8 @@ function SignInButton({ style, onClick }: { style?: React.CSSProperties; onClick
   );
 }
 
+const stripSourceTags = (value: string) => value.replace(/\s*\[[^\]\n]+\/\d+\]/g, '');
+
 export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
   const layout = useResponsiveLayout();
   const isMobileView = layout.isMobile;
@@ -118,6 +120,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
   const [typingDots, setTypingDots] = useState('');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const chatDisplayRef = React.useRef<HTMLDivElement>(null);
+  const guestThreadIdRef = useRef<string>(`guest-${Date.now()}`);
 
   const linkifyText = useCallback((value: string, keyPrefix: string): React.ReactNode[] => {
     const urlRegex = /((?:https?:\/\/|www\.)[^\s<]+)/gi;
@@ -164,7 +167,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
   }, []);
 
   const renderBotMessage = useCallback((text: string) => {
-    const lines = text.split('\n');
+    const lines = stripSourceTags(text).split('\n');
     const nodes: JSX.Element[] = [];
     let paragraphBuffer: string[] = [];
     let listBuffer: string[] = [];
@@ -265,6 +268,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
     setMessages([]);
     setInput('');
     setNextId(1);
+    guestThreadIdRef.current = `guest-${Date.now()}`;
   }, []);
   const handleSend = useCallback(async () => {
     const trimmed = input.trim();
@@ -281,11 +285,19 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
     setIsTyping(true);
 
     try {
-      // Call backend API with guest mode (no user_id)
-      // Generate a temporary thread_id for guest users
-      const tempThreadId = `guest-${Date.now()}`;
-      const response = await chatAPI.sendMessage(trimmed, tempThreadId);
-      const llmResponse = response.data?.answer || 'ไม่สามารถได้รับคำตอบ';
+      const requestMessages = [
+        ...messages.map((msg) => ({
+          role: (msg.role === 'bot' ? 'assistant' : 'user') as 'assistant' | 'user',
+          content: msg.text,
+        })),
+        { role: 'user' as const, content: trimmed }
+      ];
+
+      const response = await chatAPI.sendMessage(trimmed, guestThreadIdRef.current, 2, {
+        session_id: guestThreadIdRef.current,
+        messages: requestMessages
+      });
+      const llmResponse = stripSourceTags(response.data?.answer || 'ไม่สามารถได้รับคำตอบ');
       // Add bot response
       setMessages((prev) => [
         ...prev,

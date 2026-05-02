@@ -117,11 +117,12 @@ async def create_faq(
     db: Session = Depends(get_db),
     current_user=Depends(require_roles(["admin", "staff"])),
 ):
+    next_display_order = (db.query(FAQ.display_order).order_by(FAQ.display_order.desc()).first() or (0,))[0] + 1
     new_faq = FAQ(
         question=faq.question,
         answer=faq.answer,
         category=faq.category,
-        display_order=faq.display_order,
+        display_order=next_display_order,
         is_active=faq.is_active,
     )
     db.add(new_faq)

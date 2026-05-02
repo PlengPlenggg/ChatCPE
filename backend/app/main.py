@@ -33,11 +33,26 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Configure CORS for specific origins
+cors_origins = [
+    # Production
+    "https://chatbot.dev.cpe.kmutt.ac.th",
+    "https://chatbot.dev.cpe.kmutt.ac.th:8000",
+    # Development
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:8080",
+    # Local Docker access
+    "http://10.35.29.103:8080",
+    # For direct API access testing
+    "http://localhost:8000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

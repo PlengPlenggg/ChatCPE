@@ -23,7 +23,7 @@ from app.config import (
 )
 from app.api.auth import get_current_user, get_current_user_optional, require_roles
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict
 import logging
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,9 @@ class ChatMessage(BaseModel):
     message: str
     thread_id: str  # ID ของ thread ที่จะส่งข้อความไป
     user_id: Optional[int] = None
+    session_id: Optional[str] = None
+    domain: Optional[str] = None
+    messages: Optional[List[Dict[str, str]]] = None
 
 class ChatResponse(BaseModel):
     chat_id: Optional[int]
@@ -74,9 +77,83 @@ def extract_rag_answer(payload: object) -> Optional[str]:
     return None
 
 
-async def request_rag_answer(question: str) -> Optional[str]:
+def normalize_context_messages(messages: Optional[List[Dict[str, str]]], max_items: int = 10, max_chars: int = 500) -> List[Dict[str, str]]:
+    if not messages:
+        return []
+
+    normalized: List[Dict[str, str]] = []
+    for msg in messages:
+        if not isinstance(msg, dict):
+            continue
+        role = str(msg.get("role", "")).strip().lower()
+        content = str(msg.get("content", "")).strip()
+        if role not in {"user", "assistant", "system"} or not content:
+            continue
+        normalized.append({"role": role, "content": content[:max_chars]})
+
+    if not normalized:
+        return []
+
+    return normalized[-max_items:]
+
+
+def build_contextual_question(question: str, messages: Optional[List[Dict[str, str]]]) -> str:
+    normalized = normalize_context_messages(messages)
+    if not normalized:
+        return question
+
+    role_label = {
+        "user": "User",
+        "assistant": "Assistant",
+        "system": "System",
+    }
+
+    context_lines = []
+    for msg in normalized:
+        label = role_label.get(msg["role"], "User")
+        context_lines.append(f"{label}: {msg['content']}")
+
+    context_block = "\n".join(context_lines)
+    return (
+        "บริบทบทสนทนาก่อนหน้า:\n"
+        f"{context_block}\n\n"
+        "คำถามล่าสุดที่ต้องตอบ:\n"
+        f"{question}\n\n"
+        "ตอบโดยอ้างอิงบริบทด้านบนก่อน หากไม่มีข้อมูลในบริบทค่อยใช้ความรู้ทั่วไป"
+    )
+
+
+async def request_rag_answer(
+    question: str,
+    messages: Optional[List[Dict[str, str]]] = None,
+    session_id: Optional[str] = None,
+    domain: Optional[str] = None,
+) -> Optional[str]:
     headers = {"Content-Type": "application/json"}
-    payload = {"question": question}
+    
+    # Log input messages before normalization
+    logger.info(f"RAG INPUT - Raw messages count: {len(messages) if messages else 0}")
+    if messages:
+        for i, m in enumerate(messages[:3]):
+            content_preview = str(m.get('content', ''))[:80]
+            logger.info(f"RAG INPUT - Message {i}: role={m.get('role')}, content={content_preview}")
+    
+    normalized_messages = normalize_context_messages(messages)
+    contextual_question = build_contextual_question(question, normalized_messages)
+    payload = {"question": contextual_question}
+    if session_id:
+        payload["session_id"] = session_id
+    if domain:
+        payload["domain"] = domain
+    if normalized_messages:
+        payload["messages"] = normalized_messages
+
+    # Debug logging - show what we're sending to RAG
+    logger.info(f"RAG PAYLOAD - Normalized messages count: {len(normalized_messages) if normalized_messages else 0}")
+    if normalized_messages:
+        logger.info(f"RAG PAYLOAD - Messages: {normalized_messages}")
+    logger.info(f"RAG PAYLOAD - Question length: {len(contextual_question)} chars")
+    logger.info(f"RAG PAYLOAD - Full contextual question:\n{contextual_question[:500]}")
 
     attempts = max(1, int(RAG_MAX_RETRIES))
     raw_timeout = float(RAG_REQUEST_TIMEOUT_SECONDS)
@@ -151,9 +228,11 @@ async def request_rag_answer(question: str) -> Optional[str]:
                 answer = extract_rag_answer(parsed)
                 if answer:
                     logger.info("RAG answered successfully on attempt %s", attempt)
+                    logger.info(f"RAG RESPONSE - Length: {len(answer)} chars, Preview: {answer[:150]}")
                     return answer
 
                 logger.warning("RAG response on attempt %s had no usable answer", attempt)
+                logger.info(f"RAG RESPONSE - Full payload: {str(parsed)[:500]}")
 
         except requests.exceptions.Timeout as err:
             timeout_label = "disabled" if per_attempt_timeout is None else f"{per_attempt_timeout:.1f}s"
@@ -200,8 +279,21 @@ async def send_message(
         thread_id = chat_msg.thread_id
         logger.info(f"Received message: {chat_msg.message} from user/guest: {user_id_from_msg}, thread: {thread_id}")
         
+        # Debug: Log if messages are being received
+        if chat_msg.messages:
+            logger.info(f"Received context messages count: {len(chat_msg.messages)}")
+            for i, msg in enumerate(chat_msg.messages):
+                logger.info(f"  Message {i}: role={msg.get('role')}, content_length={len(str(msg.get('content', '')))} chars")
+        else:
+            logger.info("No context messages received")
+        
         logger.info(f"Calling RAG Service at: {RAG_SERVICE_URL}")
-        llm_response = await request_rag_answer(chat_msg.message)
+        llm_response = await request_rag_answer(
+            chat_msg.message,
+            messages=chat_msg.messages,
+            session_id=chat_msg.session_id or thread_id,
+            domain=chat_msg.domain,
+        )
         
         # If RAG Service failed, use a mock response
         if not llm_response:
@@ -307,7 +399,12 @@ async def get_chat_history(
     ดึงประวัติการสนทนาของผู้ใช้ แยกเป็น threads
     """
     try:
-        chats = db.query(Chat).filter(Chat.user_id == current_user.id).order_by(Chat.created_at.asc()).all()
+        chats = (
+            db.query(Chat)
+            .filter(Chat.user_id == current_user.id)
+            .order_by(Chat.created_at.asc(), Chat.id.asc())
+            .all()
+        )
         
         # จัดกลุ่มข้อความตามแต่ละ thread
         threads_dict = {}
@@ -329,14 +426,31 @@ async def get_chat_history(
                 "created_at": chat.created_at.isoformat() if chat.created_at else None
             })
             
-            # เพิ่ม bot answers
-            for answer in chat.answers:
+            # เพิ่ม bot answers (บังคับเรียงตามเวลาเพื่อให้ข้อความต่อเนื่อง)
+            sorted_answers = sorted(
+                chat.answers,
+                key=lambda ans: (
+                    ans.created_at or chat.created_at or datetime.min,
+                    ans.id or 0,
+                ),
+            )
+            for answer in sorted_answers:
                 threads_dict[thread_id]["messages"].append({
                     "id": answer.id,
                     "role": "bot",
                     "text": answer.answer,
                     "created_at": answer.created_at.isoformat() if answer.created_at else None
                 })
+
+        # เรียงข้อความภายในแต่ละ thread อีกรอบเพื่อความชัวร์
+        for thread_data in threads_dict.values():
+            thread_data["messages"].sort(
+                key=lambda msg: (
+                    msg.get("created_at") or "",
+                    0 if msg.get("role") == "user" else 1,
+                    msg.get("id") or 0,
+                )
+            )
         
         # สร้าง title สำหรับแต่ละ thread จากข้อความแรก
         threads_list = []

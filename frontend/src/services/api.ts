@@ -1,5 +1,5 @@
 export const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL
-  || `${window.location.protocol}//${window.location.hostname}:8000`;
+  || 'http://10.35.29.103:8000';
 
 type ApiResponse<T> = { data: T };
 
@@ -154,18 +154,63 @@ export const faqAPI = {
     return request<any[]>(`/faq/${query}`, {
       method: 'GET'
     });
+  },
+  createFAQ(payload: { question: string; answer: string; category?: string | null; display_order?: number; is_active?: boolean }) {
+    return request<any>('/faq/', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+  updateFAQ(faqId: number, payload: { question?: string; answer?: string; category?: string | null; display_order?: number; is_active?: boolean }) {
+    return request<any>(`/faq/${faqId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+  },
+  deleteFAQ(faqId: number) {
+    return request<{ message: string }>(`/faq/${faqId}`, {
+      method: 'DELETE'
+    });
   }
 };
 
 export const chatAPI = {
-  async sendMessage(message: string, thread_id: string, retries: number = 2) {
+  async sendMessage(
+    message: string,
+    thread_id: string,
+    retries: number = 2,
+    context?: {
+      session_id?: string;
+      domain?: string;
+      messages?: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
+    }
+  ) {
     let lastError: any;
+    
+    // Debug logging
+    console.log(`[chatAPI] sendMessage called with:`, {
+      message: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
+      thread_id,
+      hasContext: !!context,
+      messageCount: context?.messages?.length || 0,
+      contextPayload: context ? {
+        session_id: context.session_id,
+        domain: context.domain,
+        messageCount: context.messages?.length || 0
+      } : null
+    });
     
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         return await request<{ chat_id: number; message: string; answer: string; thread_id: string }>("/chat/send", {
           method: 'POST',
-          body: JSON.stringify({ message, thread_id }),
+          body: JSON.stringify({
+            message,
+            thread_id,
+            session_id: context?.session_id,
+            domain: context?.domain,
+            messages: context?.messages
+          }),
           timeoutMs: 60000 // 60 seconds for RAG Service
         });
       } catch (error) {
