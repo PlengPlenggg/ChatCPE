@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { authAPI } from '../services/api';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
-// Replacing remote arrow + line with inline assets for faster rendering
 const ArrowIcon = () => (
   <svg width={25} height={25} viewBox="0 0 24 24" fill="none" stroke="#6277ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="12 19 5 12 12 5" />
@@ -12,7 +11,7 @@ const ArrowIcon = () => (
 const underlineStyle: React.CSSProperties = { width: '100%', height: 1, background: '#6277ac', opacity: 0.9 };
 
 interface EditProfileModalProps {
-  onBack: () => void; // swap back to ProfileModal
+  onBack: () => void; 
   onSave?: (newUsername: string) => void;
 }
 
@@ -145,7 +144,7 @@ function EditProfileModal({ onBack, onSave }: EditProfileModalProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 5 // ensure arrow is above title layer for clickability
+            zIndex: 5 
           }}
         >
           <ArrowIcon />

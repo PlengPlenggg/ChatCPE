@@ -1,6 +1,6 @@
 import React from 'react';
 
-// Inline styles replacing any potential remote decorative lines for speed (none used yet, but ready)
+// Inline styles replacing any potential remote decorative lines for speed 
 const ActionButtonStyle: React.CSSProperties = {
   width: 120,
   height: 40,

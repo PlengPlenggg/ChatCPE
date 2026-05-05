@@ -222,7 +222,6 @@ export const chatAPI = {
           throw error;
         }
         
-        // Wait before retry (exponential backoff: 2s, 4s)
         const delayMs = Math.min(2000 * attempt, 5000);
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }

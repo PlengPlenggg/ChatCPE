@@ -115,7 +115,7 @@ async def get_faq(faq_id: int, db: Session = Depends(get_db)):
 async def create_faq(
     faq: FAQCreate,
     db: Session = Depends(get_db),
-    current_user=Depends(require_roles(["admin", "staff"])),
+    current_user=Depends(require_roles(["admin"])),
 ):
     next_display_order = (db.query(FAQ.display_order).order_by(FAQ.display_order.desc()).first() or (0,))[0] + 1
     new_faq = FAQ(
@@ -136,7 +136,7 @@ async def update_faq(
     faq_id: int,
     payload: FAQUpdate,
     db: Session = Depends(get_db),
-    current_user=Depends(require_roles(["admin", "staff"])),
+    current_user=Depends(require_roles(["admin"])),
 ):
     faq = db.query(FAQ).filter(FAQ.id == faq_id).first()
     if not faq:
@@ -161,7 +161,7 @@ async def update_faq(
 async def delete_faq(
     faq_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(require_roles(["admin", "staff"])),
+    current_user=Depends(require_roles(["admin"])),
 ):
     faq = db.query(FAQ).filter(FAQ.id == faq_id).first()
     if not faq:

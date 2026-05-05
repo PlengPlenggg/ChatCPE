@@ -31,7 +31,7 @@ router = APIRouter()
 
 class ChatMessage(BaseModel):
     message: str
-    thread_id: str  # ID ของ thread ที่จะส่งข้อความไป
+    thread_id: str  
     user_id: Optional[int] = None
     session_id: Optional[str] = None
     domain: Optional[str] = None
@@ -131,7 +131,6 @@ async def request_rag_answer(
 ) -> Optional[str]:
     headers = {"Content-Type": "application/json"}
     
-    # Log input messages before normalization
     logger.info(f"RAG INPUT - Raw messages count: {len(messages) if messages else 0}")
     if messages:
         for i, m in enumerate(messages[:3]):
@@ -148,7 +147,7 @@ async def request_rag_answer(
     if normalized_messages:
         payload["messages"] = normalized_messages
 
-    # Debug logging - show what we're sending to RAG
+    # Debug logging 
     logger.info(f"RAG PAYLOAD - Normalized messages count: {len(normalized_messages) if normalized_messages else 0}")
     if normalized_messages:
         logger.info(f"RAG PAYLOAD - Messages: {normalized_messages}")
@@ -279,7 +278,7 @@ async def send_message(
         thread_id = chat_msg.thread_id
         logger.info(f"Received message: {chat_msg.message} from user/guest: {user_id_from_msg}, thread: {thread_id}")
         
-        # Debug: Log if messages are being received
+        # Log if messages are being received
         if chat_msg.messages:
             logger.info(f"Received context messages count: {len(chat_msg.messages)}")
             for i, msg in enumerate(chat_msg.messages):
@@ -300,7 +299,7 @@ async def send_message(
             llm_response = f"ขอบคุณสำหรับคำถาม: '{chat_msg.message}'\n\nขณะนี้ระบบ AI กำลังอยู่ในช่วงปรับปรุง ดังนั้นจึงไม่สามารถตอบคำถามได้ในขณะนี้\n\nกรุณาติดต่อเจ้าหน้าที่เพื่อขอความช่วยเหลือ หรือลองใหม่อีกครั้งในภายหลัง"
             logger.info("Using mock response due to RAG Service unavailability")
         
-        # บันทึก chat ลง database เฉพาะเมื่อมี user_id (logged-in user)
+        # บันทึก chat ลง database เฉพาะเมื่อมี user_id
         chat_id = None
         if user_id_from_msg:
             chat = Chat(
@@ -309,9 +308,8 @@ async def send_message(
                 message=chat_msg.message,
             )
             db.add(chat)
-            db.flush()  # flush เพื่อให้ได้ chat.id
+            db.flush() 
             
-            # บันทึก answer
             answer = Answer(
                 chat_id=chat.id,
                 llm_provider="rag_service",
@@ -418,7 +416,7 @@ async def get_chat_history(
                     "created_at": chat.created_at.isoformat() if chat.created_at else None
                 }
             
-            # เพิ่ม user message
+            # add user message
             threads_dict[thread_id]["messages"].append({
                 "id": chat.id,
                 "role": "user",
@@ -426,7 +424,6 @@ async def get_chat_history(
                 "created_at": chat.created_at.isoformat() if chat.created_at else None
             })
             
-            # เพิ่ม bot answers (บังคับเรียงตามเวลาเพื่อให้ข้อความต่อเนื่อง)
             sorted_answers = sorted(
                 chat.answers,
                 key=lambda ans: (
@@ -442,7 +439,6 @@ async def get_chat_history(
                     "created_at": answer.created_at.isoformat() if answer.created_at else None
                 })
 
-        # เรียงข้อความภายในแต่ละ thread อีกรอบเพื่อความชัวร์
         for thread_data in threads_dict.values():
             thread_data["messages"].sort(
                 key=lambda msg: (
@@ -465,7 +461,7 @@ async def get_chat_history(
                 "messages": thread_data["messages"]
             })
         
-        # เรียงลำดับจากล่าสุดมาก่อน
+        # เรียงลำดับจากล่าสุด
         threads_list.sort(key=lambda x: x["created_at"], reverse=True)
         
         return threads_list
@@ -683,14 +679,12 @@ async def export_chat_logs_csv(
         def normalize_text(value: Optional[str]) -> str:
             if not value:
                 return ""
-            # Flatten line breaks/tabs to keep row heights compact in Excel.
             cleaned = re.sub(r"[\r\n\t]+", " ", value)
             cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
             return cleaned
 
         def safe_csv_cell(value: Optional[str]) -> str:
             text = normalize_text(value)
-            # Prevent Excel from interpreting content as formula (#NAME?, CSV injection, etc.).
             if text.startswith(("=", "+", "-", "@")):
                 return f"'{text}"
             return text

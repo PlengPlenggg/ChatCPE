@@ -460,7 +460,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
         </div>
       )}
 
-      {/* Welcome text (only visible on AI when no messages) */}
+      {/* Welcome text */}
       {selected === 'ai' && messages.length === 0 && (
         <div style={{ position: 'absolute', left: chatDisplayLeft, right: chatDisplayRight, top: '35%', transform: 'translateY(-50%)', textAlign: 'center', padding: '0 20px' }}>
           <p style={{ margin: 0, color: '#757575', fontSize: 'clamp(32px, 6vw, 70px)', fontWeight: 600, lineHeight: 1.1 }}>Hello</p>
@@ -468,7 +468,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
         </div>
       )}
 
-      {/* Chat display (only visible when messages exist) */}
+      {/* Chat display */}
       {selected === 'ai' && messages.length > 0 && (
         <div ref={chatDisplayRef} style={{ position: 'absolute', left: chatDisplayLeft, top: contentTopOffset, right: chatDisplayRight, bottom: contentBottomOffset, overflow: 'auto', padding: 20, background: '#ffffff', border: '1px solid #4960ac', borderRadius: 12 }}>
           {messages.map((msg) => (
@@ -509,7 +509,7 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
         </div>
       )}
 
-      {/* Search bar and send button (only on AI) */}
+      {/* Search bar and send button */}
       {selected === 'ai' && (
         <div style={{ position: 'absolute', left: chatDisplayLeft, right: chatDisplayRight, bottom: inputBottomOffset, height: isTabletView ? 80 : isCompactSidebar ? 84 : 96 }}>
           <div style={{ position: 'absolute', inset: 0, background: '#fff', border: '1px solid #4960ac', borderRadius: 15 }} />
@@ -556,9 +556,6 @@ export default function HomeAi({ onSignedIn }: { onSignedIn?: () => void }) {
           <DocumentsPage />
         </div>
       )}
-
-      {/* Logout icon example (position loosely based) */}
-      {/* <LogOut style={{ position: 'absolute', left: 341, top: 499, width: 18, height: 18, overflow: 'hidden' }} /> */}
 
       {/* Sign In trigger */}
       {!isCompactSidebar && (

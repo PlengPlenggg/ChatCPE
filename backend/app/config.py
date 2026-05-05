@@ -51,6 +51,6 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
-        extra = "ignore"  # อนุญาต extra fields จาก .env
+        extra = "ignore"  
 
 settings = Settings()
