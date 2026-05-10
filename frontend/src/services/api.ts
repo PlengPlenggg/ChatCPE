@@ -17,6 +17,10 @@ type RequestOptions = RequestInit & {
   timeoutMs?: number;
 };
 
+type RequestOptions = RequestInit & {
+  timeoutMs?: number;
+};
+
 const getAuthHeaders = (): HeadersInit => {
   const token = localStorage.getItem('access_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -24,13 +28,56 @@ const getAuthHeaders = (): HeadersInit => {
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
   const { timeoutMs = 15000, signal: externalSignal, ...requestOptions } = options;
+async function request<T>(path: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
+  const { timeoutMs = 15000, signal: externalSignal, ...requestOptions } = options;
   const authHeaders = getAuthHeaders();
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...authHeaders,
     ...(requestOptions.headers || {})
+    ...(requestOptions.headers || {})
   };
 
+  const controller = new AbortController();
+  let didTimeout = false;
+  const timeoutId = setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, timeoutMs);
+
+  const onExternalAbort = () => controller.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort();
+    } else {
+      externalSignal.addEventListener('abort', onExternalAbort, { once: true });
+    }
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...requestOptions,
+      headers,
+      signal: controller.signal
+    });
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      const abortError: ApiError = {
+        response: {
+          data: { detail: didTimeout ? 'Request timeout' : 'Request canceled' },
+          status: 0
+        }
+      };
+      throw abortError;
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+    if (externalSignal) {
+      externalSignal.removeEventListener('abort', onExternalAbort);
+    }
+  }
   const controller = new AbortController();
   let didTimeout = false;
   const timeoutId = setTimeout(() => {
@@ -107,6 +154,9 @@ export const authAPI = {
     }).then(res => {
       console.log('getProfile response:', res.data);
       return res;
+    }).then(res => {
+      console.log('getProfile response:', res.data);
+      return res;
     });
   },
   updateProfile(name: string) {
@@ -148,6 +198,35 @@ export const authAPI = {
       signal,
       timeoutMs
     });
+  },
+  forgotPassword(email: string) {
+    return request<{ message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+  },
+  resetPassword(token: string, new_password: string) {
+    return request<{ message: string; success: boolean }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, new_password })
+    });
+  },
+  deleteUser(user_id: number) {
+    return request<{ message: string }>(`/auth/users/${user_id}`, {
+      method: 'DELETE'
+    });
+  },
+  notifyUserBeforeDelete(user_id: number) {
+    return request<{ message: string }>(`/auth/users/${user_id}/notify-delete`, {
+      method: 'POST'
+    });
+  },
+  getUsers(signal?: AbortSignal, timeoutMs: number = 20000) {
+    return request<any[]>('/auth/users', {
+      method: 'GET',
+      signal,
+      timeoutMs
+    });
   }
 };
 
@@ -156,6 +235,23 @@ export const faqAPI = {
     const query = typeof active === 'boolean' ? `?active=${active}` : '';
     return request<any[]>(`/faq/${query}`, {
       method: 'GET'
+    });
+  },
+  createFAQ(payload: { question: string; answer: string; category?: string | null; display_order?: number; is_active?: boolean }) {
+    return request<any>('/faq/', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+  updateFAQ(faqId: number, payload: { question?: string; answer?: string; category?: string | null; display_order?: number; is_active?: boolean }) {
+    return request<any>(`/faq/${faqId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+  },
+  deleteFAQ(faqId: number) {
+    return request<{ message: string }>(`/faq/${faqId}`, {
+      method: 'DELETE'
     });
   },
   createFAQ(payload: { question: string; answer: string; category?: string | null; display_order?: number; is_active?: boolean }) {
@@ -289,6 +385,48 @@ export const chatAPI = {
     }
 
     return response.blob();
+  },
+  getAdminAnalytics(days?: number, signal?: AbortSignal, timeoutMs: number = 45000) {
+    const query = typeof days === 'number' ? `?days=${days}` : '';
+    return request<{
+      total_questions: number;
+      unique_users: number;
+      top_questions: Array<{ question: string; count: number }>;
+      hourly_usage: Array<{ hour: number; count: number }>;
+      daily_usage: Array<{ date: string; count: number }>;
+      weekday_usage: Array<{ day: string; count: number }>;
+      peak_hour: { hour: number; count: number; label: string };
+      peak_day: { date: string | null; count: number };
+      generated_at: string;
+      applied_range_days?: number | null;
+    }>(`/chat/analytics${query}`, {
+      method: 'GET',
+      signal,
+      timeoutMs
+    });
+  },
+  async exportChatLogsCsv(days?: number) {
+    const query = typeof days === 'number' ? `?days=${days}` : '';
+    const response = await fetch(`${API_BASE_URL}/chat/analytics/export-csv${query}`, {
+      method: 'GET',
+      headers: {
+        ...getAuthHeaders()
+      }
+    });
+
+    if (!response.ok) {
+      const isJson = response.headers.get('content-type')?.includes('application/json');
+      const payload = isJson ? await response.json() : null;
+      const err: ApiError = {
+        response: {
+          data: payload || { detail: response.statusText },
+          status: response.status
+        }
+      };
+      throw err;
+    }
+
+    return response.blob();
   }
 };
 
@@ -297,6 +435,44 @@ export const documentsAPI = {
     return request<Array<{ code: string; title: string; url: string }>>("/documents/forms", {
       method: 'GET'
     });
+  }
+};
+
+export const filesAPI = {
+  getCategories() {
+    return request<{ categories: Array<{ key: string; label: string }> }>("/files/categories", {
+      method: 'GET'
+    });
+  },
+  async uploadTrainingFiles(category: string, files: File[]) {
+    const formData = new FormData();
+    formData.append('category', category);
+    files.forEach((file) => formData.append('files', file));
+
+    const response = await fetch(`${API_BASE_URL}/files/upload/`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders()
+      },
+      body: formData
+    });
+
+    const isJson = response.headers.get('content-type')?.includes('application/json');
+    const payload = isJson ? await response.json() : null;
+
+    if (!response.ok) {
+      const err: ApiError = {
+        response: {
+          data: payload || { detail: response.statusText },
+          status: response.status
+        }
+      };
+      throw err;
+    }
+
+    return {
+      data: payload as { category: string; category_label: string; filenames: string[] }
+    };
   }
 };
 

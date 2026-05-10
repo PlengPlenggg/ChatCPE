@@ -41,7 +41,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 
 # Constants
-ALLOWED_ROLES = ["admin", "staff", "user"]
+ALLOWED_ROLES = ["admin", "user"]
 ALLOWED_EMAIL_DOMAINS = ["gmail.com"]
 
 # Schemas

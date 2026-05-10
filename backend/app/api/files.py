@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from app.services.pdf_processor import process_pdf
 from app.api.auth import require_roles
 
-load_dotenv()  # โหลดค่า .env ถ้าใช้ python-dotenv
+load_dotenv() 
 
 router = APIRouter()
 
