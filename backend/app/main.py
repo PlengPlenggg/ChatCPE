@@ -30,22 +30,26 @@ app = FastAPI(
     title="CPE CHAT System API",
     description="Chat bot with PDF upload, user authentication",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    root_path="/api"
 )
 
 # Configure CORS for specific origins
 cors_origins = [
     # Production
     "https://chatbot.dev.cpe.kmutt.ac.th",
-    "https://chatbot.dev.cpe.kmutt.ac.th:8000",
     # Development
     "http://localhost:3000",
     "http://localhost:5173",
     "http://localhost:8080",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:8080",
     # Local Docker access
     "http://10.35.29.103:8080",
     # For direct API access testing
     "http://localhost:8000",
+    "http://127.0.0.1:8000",
 ]
 
 app.add_middleware(

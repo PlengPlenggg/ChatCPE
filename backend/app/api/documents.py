@@ -42,7 +42,7 @@ def extract_form_items(html: str) -> List[FormItem]:
         if not href:
             continue
 
-        items.append(FormItem(code=code_text, title=title, url=urljoin(FORMS_URL, href)))
+        items.append(FormItem(code=code_text, title=title, url=normalize_public_url(urljoin(FORMS_URL, href))))
 
     return items
 
@@ -53,4 +53,3 @@ async def get_forms():
     
     items = extract_form_items(response.text)
     return items
-
