@@ -37,7 +37,7 @@ export default function AdminDashboard({ height = 'auto', view = 'all' }: AdminD
   const [notifying, setNotifying] = useState<number | null>(null);
   const [notifiedUsers, setNotifiedUsers] = useState<Record<number, boolean>>({});
   const [searchName, setSearchName] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'staff' | 'user'>('all');
   const [activityFilter, setActivityFilter] = useState<'all' | 'active_30d' | 'inactive_30d' | 'inactive_60d' | 'never_active'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [dashboardRange, setDashboardRange] = useState<'7' | '30' | '90' | 'all'>('7');
@@ -528,7 +528,7 @@ export default function AdminDashboard({ height = 'auto', view = 'all' }: AdminD
           {view !== 'information' && (
           <select
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value as 'all' | 'admin' | 'user')}
+            onChange={(e) => setRoleFilter(e.target.value as 'all' | 'admin' | 'staff' | 'user')}
             style={{
               height: '38px',
               borderRadius: '8px',
@@ -726,7 +726,7 @@ export default function AdminDashboard({ height = 'auto', view = 'all' }: AdminD
             </div>
           )}
           {loading && (
-            <div style={{ textAlign: 'center', color: '#999', padding: '40px' }}>Loading admins...</div>
+            <div style={{ textAlign: 'center', color: '#999', padding: '40px' }}>⏳ Loading admins...</div>
           )}
           {!loading && adminUsers.length === 0 && (
             <div style={{ textAlign: 'center', color: '#999', padding: '40px' }}>No admin users found</div>
