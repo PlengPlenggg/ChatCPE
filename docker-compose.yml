@@ -1,11 +1,22 @@
 
 services:
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${NGINX_HTTP_PORT:-8080}:80"
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "8080:3000"
+    expose:
+      - "3000"
     depends_on:
       - backend
     restart: unless-stopped
@@ -14,16 +25,16 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     depends_on:
       - db
     restart: unless-stopped
     environment:
       - DATABASE_URL=postgresql://testuser:testpassword@db:5432/chatcpe_db
-      - APP_BASE_URL=http://10.35.29.103:8080
-      - BACKEND_BASE_URL=http://10.35.29.103:8000
-      - RAG_SERVICE_URL=http://10.35.29.103:8001
+      - APP_BASE_URL=${APP_BASE_URL:-https://chatbot.dev.cpe.kmutt.ac.th}
+      - BACKEND_BASE_URL=${BACKEND_BASE_URL:-https://chatbot.dev.cpe.kmutt.ac.th/api}
+      - RAG_SERVICE_URL=${RAG_SERVICE_URL:-http://10.35.29.103:8001}
       - RAG_REQUEST_TIMEOUT_SECONDS=${RAG_REQUEST_TIMEOUT_SECONDS:-45}
       - RAG_MAX_RETRIES=${RAG_MAX_RETRIES:-3}
       - RAG_RETRY_DELAY_SECONDS=${RAG_RETRY_DELAY_SECONDS:-1.5}

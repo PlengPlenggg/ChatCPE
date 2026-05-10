@@ -353,7 +353,6 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
         const historyRes = await chatAPI.getHistory();
         const threads_data = historyRes.data || [];
 
-        // แปลงข้อมูล threads จาก API เป็น ChatThread format
         const threadsFormatted: ChatThread[] = threads_data.map((thread: any) => {
           const messages: ChatMessage[] = (thread.messages || []).map((msg: any, idx: number) => {
             const createdAt = msg.created_at ? new Date(msg.created_at).getTime() : Date.now() + idx;
@@ -387,7 +386,6 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
         setThreads(threadsFormatted);
         setActiveThreadId(null);
 
-        // Seed local message id counter based on total loaded messages.
         const totalMessages = threadsFormatted.reduce((sum, t) => sum + t.messages.length, 0);
         nextIdRef.current = Math.max(1, totalMessages + 1);
       } catch (err) {
@@ -439,7 +437,6 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       }
       
       // Optionally call API to delete from backend if needed
-      // For now, just remove from local state
     } catch (err) {
       console.error('Error in handleDeleteThread:', err);
     }
@@ -455,7 +452,6 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
     const botLocalId = `local-b-${startId + 1}-${now + 1}`;
     const userMsg: ChatMessage = { id: userLocalId, role: 'user', text: trimmed, createdAt: now };
     
-    // ถ้าไม่มี active thread ให้สร้างใหม่
     let currentThreadId = activeThreadId;
     if (!currentThreadId) {
       currentThreadId = createTempThreadId();
@@ -486,7 +482,6 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       requestMessagesPreview: requestMessages.slice(0, 3).map(m => ({ role: m.role, contentLength: m.content.length }))
     });
 
-    // แสดงข้อความผู้ใช้ทันที
     setThreads((prev) => {
       const existing = prev.find((t) => t.id === currentThreadId);
 
@@ -531,7 +526,6 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
         messages: requestMessages
       });
       answerText = stripSourceTags(res.data?.answer || 'ระบบไม่สามารถตอบได้ในขณะนี้');
-      // ถ้า API return thread_id ที่ต่างจากใหญ่ให้ใช้อันนั้น (เช่นจากการ save ใน backend)
       if (res.data?.thread_id) {
         realThreadId = res.data.thread_id;
       }
@@ -539,7 +533,6 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
     } catch (err: any) {
       console.error('Failed to send message:', err);
       
-      // แสดง error message ที่ชัดเจน
       let errorMsg = 'เกิดข้อผิดพลาดในการส่งข้อความ';
       
       if (err?.response?.data?.detail) {
@@ -592,7 +585,7 @@ export default function LoggedInPage({ onLogout }: LoggedInPageProps) {
       return [updatedThread, ...others];
     });
     
-    // อัพเดต activeThreadId ถ้า thread_id เปลี่ยน
+    // update activeThreadId if thread_id changed after send 
     if (realThreadId !== currentThreadId) {
       setActiveThreadId(realThreadId);
     }

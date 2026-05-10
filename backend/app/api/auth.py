@@ -460,7 +460,7 @@ async def forgot_password(
     
     user = db.query(User).filter(User.email == email).first()
     if not user:
-        # ไม่แจ้งว่าอีเมลมีอยู่หรือไม่ (security best practice)
+        # ไม่แจ้งว่าอีเมลมีอยู่หรือไม่ 
         return {"message": "If email exists, reset link has been sent"}
     
     # สร้าง reset token (valid 15 minutes)
@@ -560,7 +560,7 @@ async def delete_user(
     """
     Admin ลบ user ที่ระบุได้
     """
-    # ตรวจสอบว่าผู้เรียก (current_user) เป็น admin หรือไม่
+    # ตรวจสอบว่า current_user เป็น admin หรือไม่
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admin can delete users")
     
@@ -573,7 +573,7 @@ async def delete_user(
     if user_to_delete.role == "admin":
         raise HTTPException(status_code=403, detail="Cannot delete admin user")
     
-    # ลบ user และข้อมูลที่เกี่ยวข้อง (cascades จะถูกจัดการโดย database)
+    # ลบ user และข้อมูลที่เกี่ยวข้อง
     db.delete(user_to_delete)
     db.commit()
     
