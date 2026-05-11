@@ -32,6 +32,9 @@ from app.config import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# Gmail app passwords are often copied with spaces for readability.
+SMTP_PASS_NORMALIZED = SMTP_PASS.replace(" ", "") if SMTP_PASS else ""
+
 # Password hashing - support argon2 + bcrypt for backward compatibility
 pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
 
@@ -94,7 +97,7 @@ def hash_verification_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 def send_verification_email(to_email: str, verify_url: str):
-    if not SMTP_HOST or not SMTP_USER or not SMTP_PASS:
+    if not SMTP_HOST or not SMTP_USER or not SMTP_PASS_NORMALIZED:
         raise RuntimeError("SMTP is not configured. Set SMTP_HOST/SMTP_USER/SMTP_PASS.")
 
     subject = "Verify your ChatCPE account"
@@ -118,7 +121,7 @@ def send_verification_email(to_email: str, verify_url: str):
     try:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
+            server.login(SMTP_USER, SMTP_PASS_NORMALIZED)
             server.sendmail(SMTP_FROM, to_email, msg.as_string())
         logger.info(f"Verification email sent to {to_email}")
     except Exception as e:
@@ -498,7 +501,7 @@ async def forgot_password(
         
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
+            server.login(SMTP_USER, SMTP_PASS_NORMALIZED)
             server.send_message(msg)
         
         logger.info(f"Password reset email sent to {email}")
@@ -600,7 +603,7 @@ async def notify_user_before_delete(
     if user_to_notify.role == "admin":
         raise HTTPException(status_code=403, detail="Cannot send delete warning to admin user")
 
-    if not SMTP_HOST or not SMTP_USER or not SMTP_PASS:
+    if not SMTP_HOST or not SMTP_USER or not SMTP_PASS_NORMALIZED:
         raise HTTPException(status_code=500, detail="SMTP is not configured")
 
     try:
@@ -625,7 +628,7 @@ async def notify_user_before_delete(
 
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
+            server.login(SMTP_USER, SMTP_PASS_NORMALIZED)
             server.send_message(msg)
 
         logger.info(f"Delete warning email sent to {user_to_notify.email} by {current_user.email}")

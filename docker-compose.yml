@@ -39,11 +39,6 @@ services:
       - RAG_MAX_RETRIES=${RAG_MAX_RETRIES:-3}
       - RAG_RETRY_DELAY_SECONDS=${RAG_RETRY_DELAY_SECONDS:-1.5}
       - RAG_MAX_TOTAL_WAIT_SECONDS=${RAG_MAX_TOTAL_WAIT_SECONDS:-300}
-      - SMTP_HOST=smtp.gmail.com
-      - SMTP_PORT=587
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASS=${SMTP_PASS:-}
-      - SMTP_FROM=${SMTP_FROM:-noreply@chatcpe.com}
     volumes:
       - ./backend:/app
 
